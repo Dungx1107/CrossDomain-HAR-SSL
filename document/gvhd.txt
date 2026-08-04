@@ -9,3 +9,92 @@ Em có thể tham khảo các bộ dữ liệu, và một số yêu cầu cài �
 [1] Thukral, Megha, Harish Haresamudram, and Thomas Ploetz. "Cross-domain har: Few-shot transfer learning for human activity recognition." ACM Transactions on Intelligent Systems and Technology 16.1 (2025): 1-35.
 
 [2] Li, YiSong, et al. "Bridging domain and instance gaps: A prototype contrastive framework for robust human activity recognition." Neurocomputing (2026): 132868.
+
+
+
+https://dl.acm.org/doi/10.1145/3704921#sec-4
+Cross-domain har: Few-shot transfer learning for human activity recognition.
+
+https://www.sciencedirect.com/science/article/abs/pii/S0925231226002651
+Bridging domain and instance gaps
+
+
+## LỘ TRÌNH "SAU PYTHON TUTORIAL" - DỰ ÁN HAR
+
+### Giai đoạn 0: Xác định bài toán (Làm trước khi code)
+**HAR (Human Activity Recognition)** điển hình là bài toán:
+- **Dữ liệu vào (Input)**: Cảm biến gia tốc và con quay hồi chuyển, được ghi dưới dạng chuỗi thời gian (ví dụ: 128 bước thời gian, mỗi bước có 6 giá trị: ax, ay, az, gx, gy, gz).
+- **Dữ liệu ra (Output)**: 1 trong 6 hoạt động (Đi bộ, lên cầu thang, xuống cầu thang, ngồi, đứng, nằm).
+
+---
+
+### Giai đoạn 1: Xử lý dữ liệu (Áp dụng DataLoader và Dataset em đã học)
+
+| **Bước** | **Việc cụ thể** | **PyTorch nào em dùng?** |
+| :--- | :--- | :--- |
+| 1.1 | Tải bộ dữ liệu HAR công khai (ví dụ UCI HAR) từ `https://archive.ics.uci.edu/ml/datasets/human+activity+recognition+using+smartphones` | Không cần PyTorch, dùng `pandas` hoặc `numpy` để đọc. |
+| 1.2 | Viết class `HARDataset` kế thừa `torch.utils.data.Dataset`. Hàm `__getitem__` trả về (tensor, label). | **PyTorch:** `Dataset` |
+| 1.3 | Dùng `DataLoader` để chia thành các batch nhỏ (ví dụ `batch_size=64`), xáo trộn (shuffle=True). | **PyTorch:** `DataLoader` |
+
+---
+
+### Giai đoạn 2: Xây dựng Model (Áp dụng nn.Module em đã học)
+
+Vì HAR là dữ liệu **chuỗi thời gian (Time Series)**, MLP (Linear) không tốt. Em cần dùng **RNN hoặc LSTM**.
+
+| **Bước** | **Việc cụ thể** | **PyTorch nào em dùng?** |
+| :--- | :--- | :--- |
+| 2.1 | Định nghĩa class `HARModel` kế thừa `nn.Module`. Trong `__init__`: khai báo 1 lớp LSTM (`nn.LSTM`) và 1 lớp Linear cuối (`nn.Linear`). | **PyTorch:** `nn.Module`, `nn.LSTM`, `nn.Linear` |
+| 2.2 | Trong `forward`: đưa dữ liệu vào LSTM, lấy output của bước cuối cùng, đưa qua Linear. | **PyTorch:** `torch.cat` hoặc indexing tensor |
+| 2.3 | Thêm `Dropout` để tránh overfitting. | **PyTorch:** `nn.Dropout` |
+
+---
+
+### Giai đoạn 3: Vòng lặp huấn luyện (Áp dụng Autograd và Optimizer em đã học)
+
+Cái này em đã học trong tutorial rồi, giờ áp dụng Y HỆT:
+
+| **Bước** | **Việc cụ thể** | **PyTorch nào em dùng?** |
+| :--- | :--- | :--- |
+| 3.1 | Khởi tạo model, loss function (`CrossEntropyLoss`), optimizer (`Adam`). | **PyTorch:** `nn.CrossEntropyLoss`, `torch.optim.Adam` |
+| 3.2 | Viết vòng lặp `for epoch in range(num_epochs)` | Python thuần |
+| 3.3 | Bên trong: `optimizer.zero_grad()`, `outputs = model(inputs)`, `loss = criterion(outputs, labels)`, `loss.backward()`, `optimizer.step()`. | **PyTorch:** `autograd` (ngầm) |
+| 3.4 | Tính accuracy trên tập validation sau mỗi epoch. | **PyTorch:** `torch.max`, `torch.eq` |
+
+---
+
+### Giai đoạn 4: Đánh giá và cải tiến (Kỹ năng "đọc loss")
+
+| **Bước** | **Việc cụ thể** | **Kỹ năng học được** |
+| :--- | :--- | :--- |
+| 4.1 | Vẽ biểu đồ loss và accuracy theo từng epoch. | Dùng `matplotlib`. Nếu loss train giảm nhưng loss test không giảm -> Overfitting. |
+| 4.2 | Thử các tham số khác nhau: `lr`, `num_layers`, `hidden_size`. | Tư duy "hyperparameter tuning". |
+| 4.3 | So sánh kết quả với MLP (Linear). | Hiểu tại sao LSTM tốt hơn cho chuỗi thời gian. |
+
+---
+
+### BẢN TÓM GỌN LỘ TRÌNH (IN RA DÁN LÊN TƯỜNG)
+
+| **Ngày** | **Việc cần làm** | **Kết quả cần đạt** |
+| :--- | :--- | :--- |
+| **Ngày 1** | Đọc file HAR bằng pandas, viết class `Dataset`. | In ra được 1 batch dữ liệu với shape đúng. |
+| **Ngày 2** | Viết model LSTM, test forward với 1 batch. | Không bị lỗi shape. |
+| **Ngày 3** | Viết vòng lặp train, chạy thử 10 epoch. | Thấy loss giảm, accuracy tăng. |
+| **Ngày 4-5** | Tinh chỉnh hyperparameters, so sánh MLP vs LSTM. | Đạt accuracy > 90% trên tập test. |
+
+---
+
+### Lời khuyên CUỐI CÙNG
+
+Đừng học hết 100% PyTorch tutorial rồi mới làm dự án. Thầy khuyên em:
+
+> **Học đến đâu, áp dụng vào dự án đến đó.**
+
+Ví dụ:
+- Học xong `Dataset` và `DataLoader` -> Làm ngay giai đoạn 1.
+- Học xong `nn.Module` -> Làm ngay giai đoạn 2.
+- Học xong vòng lặp train -> Làm ngay giai đoạn 3.
+
+**Cứ thế, từng bước một. Code không bao giờ hoàn hảo ngay từ đầu, nhưng nó sẽ hoàn thiện dần khi em đụng vào lỗi thực tế.**
+
+Em đã có map rồi. Giờ chỉ cần bước chân đầu tiên thôi. Đi! 🚀

@@ -43,12 +43,16 @@ MANIFEST
 # ==========================================
 # 4. Data & Models (Tránh commit dữ liệu nặng & weights lên Git)
 # ==========================================
-# Thư mục chứa dữ liệu HAR (UCI HAR, HHAR, v.v.)
-data/
-datasets/raw/
-datasets/processed/
+# Chặn các folder chứa data nặng
+data/raw/
+data/processed/
 
-# Lưu file weights/checkpoints của mô hình
+# Cho phép Git theo dõi folder chứa notebook khám phá dữ liệu
+!data/explore_data/
+!data/explore_data/**
+
+# Bỏ qua các file định dạng dữ liệu lớn & weights
+*.csv
 *.pt
 *.pth
 *.ckpt
@@ -56,6 +60,12 @@ datasets/processed/
 *.bin
 *.h5
 *.pkl
+*.npy
+*.npz
+*.zip
+*.tar.gz
+
+# Thư mục logs & checkpoints
 checkpoints/
 saved_models/
 logs/
