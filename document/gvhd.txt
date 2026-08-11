@@ -6,9 +6,13 @@ Enhanced Finetuning Approaches"""
 
 Em có thể tham khảo các bộ dữ liệu, và một số yêu cầu cài đặt cấu hình (nếu có)  trong các bài báo sau:
 
-[1] Thukral, Megha, Harish Haresamudram, and Thomas Ploetz. "Cross-domain har: Few-shot transfer learning for human activity recognition." ACM Transactions on Intelligent Systems and Technology 16.1 (2025): 1-35.
+[1] Thukral, Megha, Harish Haresamudram, and Thomas Ploetz.
+"Cross-domain har: Few-shot transfer learning for human activity recognition."
+ACM Transactions on Intelligent Systems and Technology 16.1 (2025): 1-35.
 
-[2] Li, YiSong, et al. "Bridging domain and instance gaps: A prototype contrastive framework for robust human activity recognition." Neurocomputing (2026): 132868.
+[2] Li, YiSong, et al.
+"Bridging domain and instance gaps: A prototype contrastive framework for robust human activity recognition."
+Neurocomputing (2026): 132868.
 
 
 
@@ -23,7 +27,8 @@ Bridging domain and instance gaps
 
 ### Giai đoạn 0: Xác định bài toán (Làm trước khi code)
 **HAR (Human Activity Recognition)** điển hình là bài toán:
-- **Dữ liệu vào (Input)**: Cảm biến gia tốc và con quay hồi chuyển, được ghi dưới dạng chuỗi thời gian (ví dụ: 128 bước thời gian, mỗi bước có 6 giá trị: ax, ay, az, gx, gy, gz).
+- **Dữ liệu vào (Input)**: Cảm biến gia tốc và con quay hồi chuyển, được ghi dưới dạng chuỗi thời gian
+(ví dụ: 128 bước thời gian, mỗi bước có 6 giá trị: ax, ay, az, gx, gy, gz).
 - **Dữ liệu ra (Output)**: 1 trong 6 hoạt động (Đi bộ, lên cầu thang, xuống cầu thang, ngồi, đứng, nằm).
 
 ---
