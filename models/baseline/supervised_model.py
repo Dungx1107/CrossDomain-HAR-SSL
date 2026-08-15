@@ -19,7 +19,7 @@ class SupervisedHARModel(nn.Module):
             encoder (nn.Module): Khung xương trích xuất đặc trưng (vd: StandardSensorEncoder1D)
             classifier (nn.Module): Đầu phân loại (vd: ClassifierHead)
         """
-        super(SupervisedHARModel, self).__init__()
+        super().__init__()
         self.encoder = encoder
         self.classifier = classifier
 

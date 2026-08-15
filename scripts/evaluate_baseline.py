@@ -29,7 +29,7 @@ def evaluate_and_report():
     print(f"💻 Đang sử dụng thiết bị: {device}")
 
     # 1. Nạp DataLoader tập Test
-    _, test_loader = get_motionsense_dataloaders()
+    _, _, test_loader = get_motionsense_dataloaders()
 
     # 2. Khởi tạo lại kiến trúc mô hình
     encoder = StandardSensorEncoder1D(

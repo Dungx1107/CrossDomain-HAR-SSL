@@ -23,6 +23,7 @@ from datasets.motionsense import get_motionsense_dataloaders
 from models.encoders.cnn1d import StandardSensorEncoder1D
 from models.heads.classifier import ClassifierHead
 from models.baseline.supervised_model import SupervisedHARModel
+from utils.logger import save_experiment_csv
 
 
 def train_one_epoch(model,
@@ -111,7 +112,7 @@ def main():
     # -------------------------------------------------------------------------
     # 2. NẠP DỮ LIỆU MOTIONSENSE
     # -------------------------------------------------------------------------
-    train_loader, test_loader = get_motionsense_dataloaders()
+    train_loader, val_loader, _ = get_motionsense_dataloaders()
 
     # -------------------------------------------------------------------------
     # 3. KHỞI TẠO MÔ HÌNH BASELINE
@@ -139,6 +140,11 @@ def main():
     epochs = MotionSenseConfig.EPOCHS
     best_test_acc = 0.0
 
+    # Lưu thêm các giá trị để log sau
+    best_train_acc = 0.0
+    best_val_acc = 0.0
+    best_epoch = 0
+
     # Tạo thư mục checkpoints để lưu file trọng số tốt nhất
     DATASET_NAME = "motionsense"
     os.makedirs("checkpoints", exist_ok=True)
@@ -153,15 +159,15 @@ def main():
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
 
         # 2. Chạy Test
-        test_loss, test_acc = evaluate(model, test_loader, criterion, device)
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
 
         # In bảng theo dõi kết quả
-        print(f"{epoch:^8d} | {train_loss:^12.4f} | {train_acc:^14.2f} | {test_loss:^12.4f} | {test_acc:^14.2f}",
+        print(f"{epoch:^8d} | {train_loss:^12.4f} | {train_acc:^14.2f} | {val_loss:^12.4f} | {val_acc:^14.2f}",
               end="")
 
-        # 3. Lưu Trọng số nếu đạt Test Accuracy cao nhất
-        if test_acc > best_test_acc:
-            best_test_acc = test_acc
+        # 3. Lưu Trọng số nếu đạt Validate Accuracy cao nhất
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
             torch.save(model.state_dict(), save_path)
             print(" ⭐ [Lưu Model Best!]")
         else:
@@ -169,9 +175,48 @@ def main():
 
     print("-" * 68)
     print(f"🎉 Huấn luyện hoàn tất!")
-    print(f"🏆 Đạt Test Accuracy cao nhất: {best_test_acc:.2f}%")
+    print(f"🏆 Đạt Validate Accuracy cao nhất: {best_val_acc:.2f}%")
     print(f"📁 Trọng số tốt nhất đã được lưu tại: {save_path}")
 
+    # ============================================================
+    # LƯU KẾT QUẢ VÀO FILE CSV
+    # ============================================================
+    total_params = sum(p.numel() for p in model.parameters())
+
+    config = {
+        'model_name': 'baseline_cnn_1d',
+        'encoder_type': encoder.__class__.__name__,
+        'in_channels': MotionSenseConfig.IN_CHANNELS,
+        'feature_dim': 128,
+        'num_classes': MotionSenseConfig.NUM_CLASSES,
+        'window_size': MotionSenseConfig.WINDOW_SIZE,
+        'kernel_size': 7,
+        'dropout_rate': 0.2,
+        'num_blocks': 4,
+        'epochs': MotionSenseConfig.EPOCHS,
+        'learning_rate': MotionSenseConfig.LEARNING_RATE,
+        'batch_size': MotionSenseConfig.BATCH_SIZE,
+        'optimizer': 'Adam',
+        'loss_function': 'CrossEntropyLoss',
+        'seed': 42
+    }
+
+    results = {
+        'best_test_accuracy': best_val_acc,
+        'best_test_loss': best_val_loss,
+        'best_train_accuracy': best_train_acc,
+        'best_epoch': best_epoch,
+        'total_parameters': total_params,
+        'device': str(device),
+        'model_checkpoint_path': save_path
+    }
+
+    # Gọi hàm lưu log
+    save_experiment_csv(
+        model_name=config['model_name'],
+        config=config,
+        results=results
+    )
 
 if __name__ == '__main__':
     main()

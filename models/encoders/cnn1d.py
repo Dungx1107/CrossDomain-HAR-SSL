@@ -26,7 +26,7 @@ class StandardSensorEncoder1D(nn.Module):
             in_channels (int): Số kênh cảm biến đầu vào (default: 6 cho MotionSense)
             feature_dim (int): Kích thước Vector đặc trưng đầu ra (default: 128)
         """
-        super(StandardSensorEncoder1D, self).__init__()
+        super().__init__()
 
         # ---------------------------------------------------------------------
         # KHỐI 1: Trích xuất đặc trưng tần số thấp (Low-level local patterns)

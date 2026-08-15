@@ -48,12 +48,11 @@ class MotionSenseConfig:
     NUM_CLASSES = len(CLASS_NAMES)  # Tổng số lớp = 6
 
     # -------------------------------------------------------------------------
-    # 3. PHÂN CHIA TẬP TRAIN / TEST THEO NGƯỜI DÙNG (SUBJECT-INDEPENDENT SPLIT)
+    # 3. CHIA DỮ LIỆU THEO NGƯỜI DÙNG (CHUẨN 3 TẬP ĐỘC LẬP)
     # -------------------------------------------------------------------------
-    # Tác dụng: Chống Overfitting.
-    # Ta dùng ID của 18 người dùng để Train, 6 người dùng hoàn toàn mới để Test.
-    TRAIN_SUBJECTS = list(range(1, 19))  # ID từ 1 đến 18
-    TEST_SUBJECTS = list(range(19, 25))  # ID từ 19 đến 24
+    TRAIN_SUBJECTS = list(range(1, 15))  # Sub 1 -> 14 (14 người ~ 58.3%)
+    VAL_SUBJECTS = list(range(15, 19))  # Sub 15 -> 18 (4 người ~ 16.7%)
+    TEST_SUBJECTS = list(range(19, 25))  # Sub 19 -> 24 (6 người ~ 25.0%)
 
     # -------------------------------------------------------------------------
     # 4. THAM SỐ CẮT CỬA SỔ TRƯỢT (SLIDING WINDOW PARAMETERS)

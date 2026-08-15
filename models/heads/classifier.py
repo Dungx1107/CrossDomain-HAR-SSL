@@ -13,14 +13,17 @@ import torch.nn as nn
 
 
 class ClassifierHead(nn.Module):
-    def __init__(self, feature_dim: int = 128, num_classes: int = 6, dropout_rate: float = 0.2):
+    def __init__(self,
+                 feature_dim: int = 128,
+                 num_classes: int = 6,
+                 dropout_rate: float = 0.2):
         """
         Tham số:
             feature_dim (int): Kích thước Vector đầu vào từ Encoder (default: 128)
             num_classes (int): Số lượng nhãn phân loại (default: 6 cho MotionSense)
             dropout_rate (float): Tỷ lệ triệt tiêu ngẫu nhiên neuron để chống Overfitting
         """
-        super(ClassifierHead, self).__init__()
+        super().__init__()
 
         # Dropout giúp mô hình không bị quá phụ thuộc vào 1 vài neuron cố định
         self.dropout = nn.Dropout(dropout_rate) if dropout_rate > 0 else nn.Identity()

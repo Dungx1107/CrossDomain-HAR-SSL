@@ -16,10 +16,10 @@ import glob
 import pandas as pd
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 from config.motionsense_config import \
-    MotionSenseConfig  # Import các tham số cấu hình từ file motionsense_config.py đã tạo ở trên
+    MotionSenseConfig  # tham số cấu hình từ file motionsense_config.py
 
 
 class MotionSenseDataset(Dataset):
@@ -59,7 +59,7 @@ class MotionSenseDataset(Dataset):
         """
         # Tìm tất cả các thư mục hoạt động (dws_1, wlk_7, jog_9...)
         folder_paths = glob.glob(os.path.join(data_dir, "*_*"))
-        print(f"DEBUG: Tìm thấy {len(folder_paths)} thư mục hoạt động tại đường dẫn: '{data_dir}'")
+
         for folder in folder_paths:
             folder_name = os.path.basename(folder)  # Lấy tên thư mục, ví dụ: 'wlk_7'
 
