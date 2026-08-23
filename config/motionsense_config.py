@@ -1,5 +1,5 @@
 # FILE CẤU HÌNH THAM SỐ CHO BỘ DỮ LIỆU MOTIONSENSE
-# 🧠 Bài giảng lý thuyết cấu hình:
+# Bài giảng lý thuyết cấu hình:
 #
 #     1. Ánh xạ nhãn (Label Mapping): Tên thư mục bắt đầu bằng dws, ups, wlk, jog, sit, std.
 #     Ta phải chuyển chúng về các số từ 0 đến 5 để máy tính làm toán loss function.
@@ -59,21 +59,41 @@ class MotionSenseConfig:
     # -------------------------------------------------------------------------
     # SAMPLING_RATE = 50Hz (MotionSense thu thập 50 mẫu/giây)
     # WINDOW_SIZE = 128 mẫu -> Tương đương 128 / 50 = 2.56 giây dữ liệu cho 1 cửa sổ
-    WINDOW_SIZE = 128
+    # WINDOW_SIZE = 128
 
     # OVERLAP = 0.5 (Độ chồng lấp 50%) -> Cửa sổ sau sẽ trượt lên cửa sổ trước 64 mẫu (1.28 giây)
     # Tác dụng: Tăng gấp đôi số lượng mẫu dữ liệu thu được, giữ tính liên tục của hành động.
-    STRIDE = int(WINDOW_SIZE * (1 - 0.5))  # STRIDE = 64 mẫu
+    # STRIDE = int(WINDOW_SIZE * (1 - 0.5))  # STRIDE = 64 mẫu
+
+    # -------------------------------------------------------------------------
+    # 4. THAM SỐ CẮT CỬA SỔ TRƯỢT (EXP-2.1: WINDOW 256 MẪU ~ 5.12s)
+    # -------------------------------------------------------------------------
+    # WINDOW_SIZE = 256
+    WINDOW_SIZE = 512
+    # STRIDE = 64  # Overlap 75% để bù lại việc tăng kích thước cửa sổ
+    STRIDE = 128  # Overlap 75% để bù lại việc tăng kích thước cửa sổ
 
     # -------------------------------------------------------------------------
     # 5. LỰA CHỌN KÊNH CẢM BIẾN DỮ LIỆU (FEATURE COLUMNS)
     # -------------------------------------------------------------------------
     # Chọn 6 kênh cảm biến cơ bản nhất cho bài toán HAR:
     # 3 trục Gia tốc người dùng (userAcceleration) + 3 trục Vận tốc góc (rotationRate)
+
+    # FEATURE_COLS = [
+    #     'userAcceleration.x', 'userAcceleration.y', 'userAcceleration.z',
+    #     'rotationRate.x', 'rotationRate.y', 'rotationRate.z'
+    # ]
     FEATURE_COLS = [
-        'userAcceleration.x', 'userAcceleration.y', 'userAcceleration.z',
-        'rotationRate.x', 'rotationRate.y', 'rotationRate.z'
+        'attitude.roll', 'attitude.pitch', 'attitude.yaw',
+        'gravity.x', 'gravity.y', 'gravity.z',
+        'rotationRate.x', 'rotationRate.y', 'rotationRate.z',
+        'userAcceleration.x', 'userAcceleration.y', 'userAcceleration.z'
     ]
+    # FEATURE_COLS = [
+    #     'gravity.x', 'gravity.y', 'gravity.z',
+    #     'rotationRate.x', 'rotationRate.y', 'rotationRate.z',
+    #     'userAcceleration.x', 'userAcceleration.y', 'userAcceleration.z'
+    # ]
     IN_CHANNELS = len(FEATURE_COLS)  # Số kênh đầu vào = 6
 
     # -------------------------------------------------------------------------

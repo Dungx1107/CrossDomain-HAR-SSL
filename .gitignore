@@ -9,7 +9,14 @@ env.bak/
 venv.bak/
 
 # ==========================================
-# 2. Python Caches & Compiled Files
+# 2. Secrets & Environment Variables (Bảo mật)
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# 3. Python Caches & Compiled Files
 # ==========================================
 __pycache__/
 *.py[cod]
@@ -35,23 +42,24 @@ share/python-wheels/
 MANIFEST
 
 # ==========================================
-# 3. Jupyter Notebook Caches
+# 4. Jupyter Notebook Caches
 # ==========================================
 .ipynb_checkpoints
 *-checkpoint.py
 
 # ==========================================
-# 4. Data & Models (Tránh commit dữ liệu nặng & weights lên Git)
+# 5. Data, Weights & Artifacts (Tránh push file nặng)
 # ==========================================
-# Chặn các folder chứa data nặng
+# Bỏ qua dữ liệu thô & tiền xử lý
 data/raw/
 data/processed/
 
-# Cho phép Git theo dõi folder chứa notebook khám phá dữ liệu
+# Cho phép Git theo dõi thư mục notebook phân tích dữ liệu
 !data/explore_data/
 !data/explore_data/**
+!data/explore_data/**/*.csv
 
-# Bỏ qua các file định dạng dữ liệu lớn & weights
+# Bỏ qua định dạng file dữ liệu lớn & weights
 *.csv
 *.pt
 *.pth
@@ -65,14 +73,20 @@ data/processed/
 *.zip
 *.tar.gz
 
-# Thư mục logs & checkpoints
+# Thư mục logs, checkpoints & outputs thực nghiệm
 checkpoints/
 saved_models/
 logs/
 wandb/
+runs/
+results/
+outputs/
+
+# Giữ lại file .gitkeep để duy trì cấu trúc thư mục rỗng
+!.gitkeep
 
 # ==========================================
-# 5. IDEs & Editors (PyCharm, VS Code, OS)
+# 6. IDEs & Editors (PyCharm, VS Code, OS)
 # ==========================================
 # PyCharm
 .idea/
@@ -84,14 +98,16 @@ wandb/
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Ubuntu / Linux
+# OS Specific
 .DS_Store
 .directory
 *.swp
 *.swo
+*~
 
 # ==========================================
-# 6. Package Manager (uv & pip)
+# 7. Package Manager & Cache (uv, pip, triton)
 # ==========================================
 .cache/
 .uv/
+.triton/

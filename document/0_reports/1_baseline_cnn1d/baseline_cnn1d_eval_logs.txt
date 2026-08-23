@@ -1,0 +1,183 @@
+===========================================================================
+🕒 THỜI GIAN CHẠY: 2026-08-15 17:07:30
+📝 GHI CHÚ      : Baseline Test Run
+⚙️ SIÊU THAM SỐ : Channels=9 | Window=256 | Stride=64 | Batch=64 | LR=0.001 | Epochs=30
+===========================================================================
+💻 Đang sử dụng thiết bị: cuda
+⏳ Đang khởi tạo và nạp dữ liệu MotionSense...
+✅ Nạp dữ liệu hoàn tất!
+   - Tập TRAIN (14 người): Thu được 11955 cửa sổ (Windows) | 186 Batches
+   - Tập VAL   (4 người)  : 3591 windows | 57 batches
+   - Tập TEST  (6 người) : Thu được 5273 cửa sổ (Windows) | 83 Batches
+✅ Đã nạp thành công trọng số từ: checkpoints/baseline_cnn1d_motionsense_best.pt
+
+======================================================================
+📊 BÁO CÁO KẾT QUẢ ĐÁNH GIÁ CHI TIẾT (CLASSIFICATION REPORT)
+======================================================================
+              precision    recall  f1-score   support
+
+  Downstairs     0.9941    0.7511    0.8557       450
+    Upstairs     0.7180    0.8373    0.7731       590
+     Walking     0.9438    0.9176    0.9305      1299
+     Jogging     0.9980    0.9861    0.9920       504
+     Sitting     1.0000    1.0000    1.0000      1159
+    Standing     0.9592    1.0000    0.9792      1271
+
+    accuracy                         0.9389      5273
+   macro avg     0.9355    0.9154    0.9218      5273
+weighted avg     0.9441    0.9389    0.9394      5273
+
+
+======================================================================
+🧩 MA TRẬN NHẦM LẪN (CONFUSION MATRIX)
+   (Hàng dọc: Nhãn Thực Tế | Cột ngang: Nhãn Dự Đoán)
+======================================================================
+Thực tế / Dự đoán    | Downst | Upstai | Walkin | Joggin | Sittin | Standi
+--------------------------------------------------------------------------
+Downstairs           |  338   |   83   |   27   |   1    |   0    |   1   
+Upstairs             |   2    |  494   |   41   |   0    |   0    |   53  
+Walking              |   0    |  107   |  1192  |   0    |   0    |   0   
+Jogging              |   0    |   4    |   3    |  497   |   0    |   0   
+Sitting              |   0    |   0    |   0    |   0    |  1159  |   0   
+Standing             |   0    |   0    |   0    |   0    |   0    |  1271 
+======================================================================
+
+📁 Đã lưu toàn bộ log trên vào: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/baseline_cnn1d_eval_logs.txt
+
+===========================================================================
+🕒 THỜI GIAN CHẠY: 2026-08-15 17:11:41
+📝 GHI CHÚ      : Baseline Test Run
+⚙️ SIÊU THAM SỐ : Channels=12 | Window=256 | Stride=64 | Batch=64 | LR=0.001 | Epochs=30
+===========================================================================
+💻 Đang sử dụng thiết bị: cuda
+⏳ Đang khởi tạo và nạp dữ liệu MotionSense...
+✅ Nạp dữ liệu hoàn tất!
+   - Tập TRAIN (14 người): Thu được 11955 cửa sổ (Windows) | 186 Batches
+   - Tập VAL   (4 người)  : 3591 windows | 57 batches
+   - Tập TEST  (6 người) : Thu được 5273 cửa sổ (Windows) | 83 Batches
+✅ Đã nạp thành công trọng số từ: checkpoints/baseline_cnn1d_motionsense_best.pt
+
+======================================================================
+📊 BÁO CÁO KẾT QUẢ ĐÁNH GIÁ CHI TIẾT (CLASSIFICATION REPORT)
+======================================================================
+              precision    recall  f1-score   support
+
+  Downstairs     0.5127    0.8956    0.6521       450
+    Upstairs     0.9321    0.8610    0.8952       590
+     Walking     0.9828    0.7052    0.8212      1299
+     Jogging     0.9900    0.9861    0.9881       504
+     Sitting     1.0000    1.0000    1.0000      1159
+    Standing     0.9422    1.0000    0.9702      1271
+
+    accuracy                         0.9016      5273
+   macro avg     0.8933    0.9080    0.8878      5273
+weighted avg     0.9317    0.9016    0.9062      5273
+
+
+======================================================================
+🧩 MA TRẬN NHẦM LẪN (CONFUSION MATRIX)
+   (Hàng dọc: Nhãn Thực Tế | Cột ngang: Nhãn Dự Đoán)
+======================================================================
+Thực tế / Dự đoán    | Downst | Upstai | Walkin | Joggin | Sittin | Standi
+--------------------------------------------------------------------------
+Downstairs           |  403   |   23   |   3    |   0    |   0    |   21  
+Upstairs             |   17   |  508   |   8    |   0    |   0    |   57  
+Walking              |  365   |   13   |  916   |   5    |   0    |   0   
+Jogging              |   1    |   1    |   5    |  497   |   0    |   0   
+Sitting              |   0    |   0    |   0    |   0    |  1159  |   0   
+Standing             |   0    |   0    |   0    |   0    |   0    |  1271 
+======================================================================
+
+📁 Đã lưu toàn bộ log trên vào: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/baseline_cnn1d_eval_logs.txt
+
+===========================================================================
+🕒 THỜI GIAN CHẠY: 2026-08-22 16:30:49
+📝 GHI CHÚ      : Baseline Test Run
+⚙️ SIÊU THAM SỐ : Channels=12 | Window=512 | Stride=64 | Batch=64 | LR=0.001 | Epochs=30
+===========================================================================
+💻 Đang sử dụng thiết bị: cuda
+⏳ Đang khởi tạo và nạp dữ liệu MotionSense...
+✅ Nạp dữ liệu hoàn tất!
+   - Tập TRAIN (14 người): Thu được 11117 cửa sổ (Windows) | 173 Batches
+   - Tập VAL   (4 người)  : 3351 windows | 53 batches
+   - Tập TEST  (6 người) : Thu được 4914 cửa sổ (Windows) | 77 Batches
+✅ Đã nạp thành công trọng số từ: ../checkpoints/baseline_cnn1d_motionsense_best.pt
+
+======================================================================
+📊 BÁO CÁO KẾT QUẢ ĐÁNH GIÁ CHI TIẾT (CLASSIFICATION REPORT)
+======================================================================
+              precision    recall  f1-score   support
+
+  Downstairs     0.6507    0.8945    0.7533       379
+    Upstairs     1.0000    0.7568    0.8615       518
+     Walking     0.9654    0.9552    0.9603      1227
+     Jogging     1.0000    0.9868    0.9934       456
+     Sitting     1.0000    0.9208    0.9588      1111
+    Standing     0.9307    1.0000    0.9641      1223
+
+    accuracy                         0.9359      4914
+   macro avg     0.9245    0.9190    0.9152      4914
+weighted avg     0.9472    0.9359    0.9376      4914
+
+
+======================================================================
+🧩 MA TRẬN NHẦM LẪN (CONFUSION MATRIX)
+   (Hàng dọc: Nhãn Thực Tế | Cột ngang: Nhãn Dự Đoán)
+======================================================================
+Thực tế / Dự đoán    | Downst | Upstai | Walkin | Joggin | Sittin | Standi
+--------------------------------------------------------------------------
+Downstairs           |  339   |   0    |   25   |   0    |   0    |   15  
+Upstairs             |   39   |  392   |   11   |   0    |   0    |   76  
+Walking              |   55   |   0    |  1172  |   0    |   0    |   0   
+Jogging              |   0    |   0    |   6    |  450   |   0    |   0   
+Sitting              |   88   |   0    |   0    |   0    |  1023  |   0   
+Standing             |   0    |   0    |   0    |   0    |   0    |  1223 
+======================================================================
+
+📁 Đã lưu toàn bộ log trên vào: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/1_baseline_cnn1d/baseline_cnn1d_eval_logs.txt
+
+===========================================================================
+🕒 THỜI GIAN CHẠY: 2026-08-22 16:33:16
+📝 GHI CHÚ      : Baseline Test Run
+⚙️ SIÊU THAM SỐ : Channels=12 | Window=512 | Stride=128 | Batch=64 | LR=0.001 | Epochs=30
+===========================================================================
+💻 Đang sử dụng thiết bị: cuda
+⏳ Đang khởi tạo và nạp dữ liệu MotionSense...
+✅ Nạp dữ liệu hoàn tất!
+   - Tập TRAIN (14 người): Thu được 5608 cửa sổ (Windows) | 87 Batches
+   - Tập VAL   (4 người)  : 1689 windows | 27 batches
+   - Tập TEST  (6 người) : Thu được 2478 cửa sổ (Windows) | 39 Batches
+✅ Đã nạp thành công trọng số từ: ../checkpoints/baseline_cnn1d_motionsense_best.pt
+
+======================================================================
+📊 BÁO CÁO KẾT QUẢ ĐÁNH GIÁ CHI TIẾT (CLASSIFICATION REPORT)
+======================================================================
+              precision    recall  f1-score   support
+
+  Downstairs     0.5282    0.9082    0.6679       196
+    Upstairs     0.9383    0.8161    0.8730       261
+     Walking     0.9722    0.7362    0.8379       618
+     Jogging     1.0000    0.9913    0.9957       231
+     Sitting     1.0000    1.0000    1.0000       558
+    Standing     0.9317    1.0000    0.9647       614
+
+    accuracy                         0.9068      2478
+   macro avg     0.8951    0.9086    0.8899      2478
+weighted avg     0.9323    0.9068    0.9108      2478
+
+
+======================================================================
+🧩 MA TRẬN NHẦM LẪN (CONFUSION MATRIX)
+   (Hàng dọc: Nhãn Thực Tế | Cột ngang: Nhãn Dự Đoán)
+======================================================================
+Thực tế / Dự đoán    | Downst | Upstai | Walkin | Joggin | Sittin | Standi
+--------------------------------------------------------------------------
+Downstairs           |  178   |   5    |   13   |   0    |   0    |   0   
+Upstairs             |   3    |  213   |   0    |   0    |   0    |   45  
+Walking              |  156   |   7    |  455   |   0    |   0    |   0   
+Jogging              |   0    |   2    |   0    |  229   |   0    |   0   
+Sitting              |   0    |   0    |   0    |   0    |  558   |   0   
+Standing             |   0    |   0    |   0    |   0    |   0    |  614  
+======================================================================
+
+📁 Đã lưu toàn bộ log trên vào: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/1_baseline_cnn1d/baseline_cnn1d_eval_logs.txt

@@ -1,0 +1,25 @@
+1. Nghiên cứu, xây dựng và đánh giá các phương pháp học
+tự giám sát sử dụng học sâu cho bài toán liên miền nhận
+dạng hoạt động con người (Cross-domain HAR)
+""Cross-Domain HAR: Self-supervised Learning and
+Enhanced Finetuning Approaches"""
+
+Em có thể tham khảo các bộ dữ liệu, và một số yêu cầu cài đặt cấu hình (nếu có)  trong các bài báo sau:
+
+[1] Thukral, Megha, Harish Haresamudram, and Thomas Ploetz.
+"Cross-domain har: Few-shot transfer learning for human activity recognition."
+ACM Transactions on Intelligent Systems and Technology 16.1 (2025): 1-35.
+
+[2] Li, YiSong, et al.
+"Bridging domain and instance gaps: A prototype contrastive framework for robust human activity recognition."
+Neurocomputing (2026): 132868.
+
+
+
+https://dl.acm.org/doi/10.1145/3704921#sec-4
+Cross-domain har: Few-shot transfer learning for human activity recognition.
+
+https://www.sciencedirect.com/science/article/abs/pii/S0925231226002651
+Bridging domain and instance gaps
+
+
