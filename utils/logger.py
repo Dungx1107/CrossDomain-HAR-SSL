@@ -87,3 +87,17 @@ class ExperimentTracker:
         if hasattr(self, 'txt_file') and not self.txt_file.closed:
             self.txt_file.close()
         sys.stdout = self.terminal
+
+    def log_complexity(self, complexity_dict: dict):
+        """Cập nhật thông tin độ phức tạp vào file config.json hiện tại."""
+        json_path = os.path.join(self.log_dir, "config.json")
+        if os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as f:
+                current_config = json.load(f)
+        else:
+            current_config = {}
+
+        current_config["model_complexity"] = complexity_dict
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(current_config, f, indent=4)

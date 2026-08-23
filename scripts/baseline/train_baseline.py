@@ -57,6 +57,13 @@ def main():
         optimizer = Adam(model.parameters(), lr=MotionSenseConfig.LEARNING_RATE, weight_decay=1e-4)
         scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 
+        # 4. ĐO ĐỘ PHỨC TẠP TÍNH TOÁN & GHI VÀO CONFIG.JSON
+        input_sample_shape = (1, MotionSenseConfig.IN_CHANNELS, MotionSenseConfig.WINDOW_SIZE)
+        complexity_info = measure_model_complexity(model, input_size=input_sample_shape, device=device)
+        print_complexity_report(complexity_info)
+        tracker.log_complexity(complexity_info)
+
+
         # 4. GIAI ĐOẠN 1: HUẤN LUYỆN (TRAINING)
         trainer = SupervisedTrainer(
             model=model,
@@ -89,8 +96,7 @@ def main():
         )
 
     finally:
-        # Giải phóng an toàn luồng ghi log
-        tracker.close()
+        tracker.close()  # Giải phóng an toàn luồng ghi log
 
 
 if __name__ == "__main__":

@@ -1,1 +1,0 @@
-# Projection Head cho bài toán SSL (SimCLR / TS-TCC)

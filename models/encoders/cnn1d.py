@@ -100,26 +100,3 @@ class StandardSensorEncoder1D(nn.Module):
 
         return feature_vector
 
-
-# =============================================================================
-# SCRIPT CHẠY TEST ĐỘC LẬP KIỂM TRA ENCODER
-# =============================================================================
-if __name__ == '__main__':
-    print("⏳ Đang kiểm tra Module StandardSensorEncoder1D...")
-
-    # Giả lập 1 Batch dữ liệu ngẫu nhiên: Batch=32, 6 kênh cảm biến, dài 128 mẫu
-    dummy_input = torch.randn(32, 6, 128)
-
-    # Khởi tạo Encoder
-    encoder = StandardSensorEncoder1D(in_channels=6, feature_dim=128)
-
-    # Chạy thử Forward
-    output_features = encoder(dummy_input)
-
-    # Đếm tổng số lượng tham số (Parameters) của Encoder
-    total_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
-
-    print("✅ Kiểm tra hoàn tất! Không có lỗi Shape!")
-    print(f"   - Đầu vào Giả lập (Raw Batch) : {dummy_input.shape}")
-    print(f"   - Đầu ra Encoder (Features)   : {output_features.shape}")
-    print(f"   - Tổng số Tham số (Parameters): {total_params:,} tham số (~{total_params * 4 / 1024 / 1024:.2f} MB)")

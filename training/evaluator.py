@@ -1,6 +1,5 @@
 """
 ===============================================================================
-MỤC ĐÍCH:
     Cung cấp Engine đánh giá độc lập (Evaluation Engine) cho các bài toán
     phân loại hành động (HAR), hỗ trợ suy luận không tính Gradient,
     tính toán báo cáo đa chỉ số và tự động xuất Ma trận nhầm lẫn.
