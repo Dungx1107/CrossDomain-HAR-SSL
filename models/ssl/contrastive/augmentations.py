@@ -61,11 +61,14 @@ class TS_TCC_Augmentation:
     Bộ tạo 2 views (Weak view và Strong view) theo chuẩn TS-TCC.
     """
 
-    def __init__(self, jitter_sigma=0.05, scale_sigma=0.1, warp_sigma=0.2, n_perm=4):
+    def __init__(self,
+                 jitter_sigma=0.03,
+                 scale_sigma=0.05,
+                 warp_sigma=0.1,
+    ):
         self.jitter_sigma = jitter_sigma
         self.scale_sigma = scale_sigma
         self.warp_sigma = warp_sigma
-        self.n_perm = n_perm
 
     def weak_transform(self, x):
         """View yếu: Kết hợp Scaling và Jittering nhẹ."""
@@ -75,9 +78,7 @@ class TS_TCC_Augmentation:
 
     def strong_transform(self, x):
         """View mạnh: Kết hợp Permutation và Time-Warping."""
-        x_aug = permutation(x, max_segments=self.n_perm)
-        x_aug = time_warp(x_aug, sigma=self.warp_sigma)
-        return x_aug
+        return jitter(time_warp(x, sigma=self.warp_sigma), sigma=self.jitter_sigma * 1.5)
 
     def __call__(self, x):
         """
