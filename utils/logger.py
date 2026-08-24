@@ -101,3 +101,23 @@ class ExperimentTracker:
 
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(current_config, f, indent=4)
+
+
+# Class chuyển hướng ghi log song song ra Terminal và 1 File TXT duy nhất
+class SimpleLogger:
+    def __init__(self, file_path):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        self.terminal = sys.stdout
+        self.log_file = open(file_path, "w", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log_file.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log_file.flush()
+
+    def close(self):
+        self.log_file.close()
+        sys.stdout = self.terminal

@@ -1,6 +1,5 @@
 """
 ===============================================================================
-MỤC ĐÍCH:
     - Đọc file CSV metrics để vẽ đồ thị Loss & Macro F1 qua các Epoch.
     - Vẽ Heatmap Ma trận nhầm lẫn (Confusion Matrix Heatmap %).
     - Vẽ biểu đồ t-SNE không gian biểu diễn đặc trưng.

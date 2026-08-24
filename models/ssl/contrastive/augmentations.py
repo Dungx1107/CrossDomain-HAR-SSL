@@ -1,7 +1,7 @@
 """
-MỤC ĐÍCH: Module cung cấp các thuật toán biến đổi tín hiệu chuỗi thời gian (Time-Series
-    Data Augmentation) và bọc dữ liệu (Dataset Wrapper) phục vụ cho quá trình
-    huấn luyện Tự giám sát (Self-Supervised Learning - SSL) theo chuẩn TS-TCC.
+Module cung cấp các thuật toán biến đổi tín hiệu chuỗi thời gian (Time-Series
+Data Augmentation) và bọc dữ liệu (Dataset Wrapper) phục vụ cho quá trình
+huấn luyện Tự giám sát (Self-Supervised Learning - SSL) theo chuẩn TS-TCC.
 """
 import numpy as np
 import torch
@@ -29,7 +29,7 @@ def time_warp(x, sigma=0.2, num_knots=4):
     warped_knot_positions = knot_positions * random_shifts
 
     warped_knot_positions = (warped_knot_positions - warped_knot_positions[0]) / (
-        warped_knot_positions[-1] - warped_knot_positions[0]
+            warped_knot_positions[-1] - warped_knot_positions[0]
     ) * (T - 1)
 
     spline = CubicSpline(knot_positions, warped_knot_positions)
@@ -46,11 +46,12 @@ def permutation(x, max_segments=4):
     C, T = x.shape
     seg_len = T // max_segments
     segments = [
-        x[:, i * seg_len : (i + 1) * seg_len if i < max_segments - 1 else T]
+        x[:, i * seg_len: (i + 1) * seg_len if i < max_segments - 1 else T]
         for i in range(max_segments)
     ]
     np.random.shuffle(segments)
     return np.concatenate(segments, axis=1)
+
 
 # =============================================================================
 # BỘ PHỐI HỢP WEAK & STRONG AUGMENTATION
@@ -59,6 +60,7 @@ class TS_TCC_Augmentation:
     """
     Bộ tạo 2 views (Weak view và Strong view) theo chuẩn TS-TCC.
     """
+
     def __init__(self, jitter_sigma=0.05, scale_sigma=0.1, warp_sigma=0.2, n_perm=4):
         self.jitter_sigma = jitter_sigma
         self.scale_sigma = scale_sigma
@@ -81,8 +83,9 @@ class TS_TCC_Augmentation:
         """
         Nhận vào mảng numpy (C, T) và trả về 2 views dạng PyTorch Tensor.
         """
-        x_w = self.weak_transform(x.copy())
-        x_s = self.strong_transform(x.copy())
+        x_numpy = x.cpu().numpy() if isinstance(x, torch.Tensor) else x
+        x_w = self.weak_transform(x_numpy.copy())
+        x_s = self.strong_transform(x_numpy.copy())
 
         return (
             torch.tensor(x_w, dtype=torch.float32),

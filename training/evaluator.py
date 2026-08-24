@@ -49,6 +49,7 @@ class ModelEvaluator:
         macro_f1 = f1_score(y_true, y_pred, average="macro")
         weighted_f1 = f1_score(y_true, y_pred, average="weighted")
 
+
         print("\n" + "=" * 75)
         print(f"{f'KẾT QUẢ ĐÁNH GIÁ TỔNG QUAN ({title_prefix})':^75}")
         print("=" * 75)

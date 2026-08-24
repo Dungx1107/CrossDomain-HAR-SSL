@@ -23,7 +23,9 @@ https://www.sciencedirect.com/science/article/abs/pii/S0925231226002651
 Bridging domain and instance gaps
 
 
-Để đánh giá được, em cần so sánh các kịch bản thực nghiệm với nhau trên một số bộ dữ liệu chéo miền nhé. Dựa trên kết quả đó phân tích, so sánh, giải thích tại sao mô hình/ một số mô hình được đề xuất tốt ở tập chéo này nhưng không tốt ở tập chéo khác chẳng hạn ....
-Dựa vào bài toán em chọn là nâng cao kết quả độ chính xác, thì cô sẽ đánh giá dựa vào kết quả độ đo. Tuy nhiên còn một thang đo với các mô hình học sâu là thời gian học/suy luận của mô hình, độ phức tạp của mô hình. Em có thể tìm hiểu thêm.
+Để đánh giá được, em cần so sánh các kịch bản thực nghiệm với nhau trên một số bộ dữ liệu chéo miền nhé.
+Dựa trên kết quả đó phân tích, so sánh, giải thích tại sao mô hình/ một số mô hình được đề xuất tốt ở tập chéo này nhưng không tốt ở tập chéo khác chẳng hạn ....
+Dựa vào bài toán em chọn là nâng cao kết quả độ chính xác, thì cô sẽ đánh giá dựa vào kết quả độ đo.
+Tuy nhiên còn một thang đo với các mô hình học sâu là thời gian học/suy luận của mô hình, độ phức tạp của mô hình. Em có thể tìm hiểu thêm.
 
 
