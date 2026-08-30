@@ -1,6 +1,6 @@
 """
 ===============================================================================
-SCRIPT RUNNER: scripts/baseline/train_baseline.py (TRAIN + EVALUATE)
+SCRIPT RUNNER: TRAIN + EVALUATE
 ===============================================================================
 Mục đích:
     - Huấn luyện mô hình Supervised 1D-CNN trên MotionSense (Subjects 1-14 Train, 15-18 Val).
@@ -22,10 +22,11 @@ if PROJECT_ROOT not in sys.path:
 
 from config.motionsense_config import MotionSenseConfig
 from datasets.motionsense.loader import get_motionsense_dataloaders
-from models.baseline.supervised_model import SupervisedHARModel
+from models.har_classifier import HARClassifier
 from training.supervised_trainer import SupervisedTrainer
 from training.evaluator import ModelEvaluator
 from utils.logger import ExperimentTracker
+from utils.complexity import measure_model_complexity, print_complexity_report
 
 CLASS_NAMES = ["Walking", "Jogging", "Upstairs", "Downstairs", "Sitting", "Standing"]
 
@@ -48,7 +49,7 @@ def main():
         train_loader, val_loader, test_loader = get_motionsense_dataloaders()
 
         # 3. Khởi tạo Model, Loss, Optimizer
-        model = SupervisedHARModel(
+        model = HARClassifier(
             in_channels=MotionSenseConfig.IN_CHANNELS,
             num_classes=MotionSenseConfig.NUM_CLASSES
         ).to(device)

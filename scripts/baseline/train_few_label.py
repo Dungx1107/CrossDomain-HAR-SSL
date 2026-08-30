@@ -23,7 +23,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 from config.motionsense_config import MotionSenseConfig
 from datasets.motionsense.dataset import MotionSenseDataset
-from models.baseline.supervised_model import SupervisedHARModel
+from models.har_classifier import HARClassifier
 from training.supervised_trainer import SupervisedTrainer
 from training.evaluator import ModelEvaluator
 from utils.logger import SimpleLogger
@@ -102,7 +102,7 @@ def main():
             temp_checkpoint = os.path.join(PROJECT_ROOT, "checkpoints", "temp_few_label_model.pt")
 
             # Khởi tạo mô hình
-            model = SupervisedHARModel(
+            model = HARClassifier(
                 in_channels=MotionSenseConfig.IN_CHANNELS,
                 num_classes=MotionSenseConfig.NUM_CLASSES
             ).to(device)

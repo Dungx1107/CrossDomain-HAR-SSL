@@ -1,0 +1,35 @@
+=====================================================================================
+🚀 ĐÁNH GIÁ CHUYỂN GIAO TRỰC TIẾP: SUPERVISED (MotionSense -> UCI-HAR)
+🖥️ Thiết bị sử dụng : cuda
+💾 Checkpoint nguồn : /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/baseline_cnn1d_motionsense_best.pt
+📄 File lưu log     : /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/2_cross_domain_zero_shot/supervised_transfer_eval_logs.txt
+=====================================================================================
+📦 Đã nạp tập Test UCI-HAR: 2410 mẫu | Shape: torch.Size([2410, 6, 128])
+
+=====================================================================================
+🎯 KẾT QUẢ ZERO-SHOT CỦA PURE SUPERVISED (MotionSense -> UCI-HAR)
+=====================================================================================
+🎯 Test Accuracy   :  15.93%
+🏆 Test Macro F1   :  18.00% (Thước đo chính)
+⚖️ Test Weighted F1 :  17.06%
+-------------------------------------------------------------------------------------
+📋 BẢNG THỐNG KÊ CHI TIẾT TỪNG LỚP HÀNH ĐỘNG (UCI-HAR):
+              precision    recall  f1-score   support
+
+     Walking     0.0413    0.0786    0.0541       496
+    Upstairs     0.7300    0.4650    0.5681       471
+  Downstairs     0.2587    0.3000    0.2778       420
+     Sitting     0.0000    0.0000    0.0000       491
+    Standing     0.0000    0.0000    0.0000       532
+
+   micro avg     0.1769    0.1593    0.1676      2410
+   macro avg     0.2060    0.1687    0.1800      2410
+weighted avg     0.1963    0.1593    0.1706      2410
+
+🔍 MA TRẬN NHẦM LẪN (UCI-HAR Classes: Walk, Up, Down, Sit, Stand):
+[[ 39  24 274 124   0]
+ [  2 219  87 160   0]
+ [  0  55 126 155   0]
+ [434   0   0   0   0]
+ [470   2   0   0   0]]
+=====================================================================================

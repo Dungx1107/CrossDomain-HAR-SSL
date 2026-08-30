@@ -1,0 +1,69 @@
+=====================================================================================
+Đánh giá TSTCC SSL Few-shot từ MotionSense sang UCI-HAR
+Thiết bị sử dụng: cuda
+Checkpoint nguồn: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/tstcc_encoder_pretrained_motionsense.pt
+File lưu log: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/6_tstcc_few_shot/tstcc_few_shot_from_motionsense_to_uci.txt
+=====================================================================================
+Đã nạp tập Test UCI-HAR: 2410 mẫu | Shape: torch.Size([2410, 6, 128])
+Đã nạp tập Train UCI-HAR: 5945 mẫu | Shape: torch.Size([5945, 6, 128])
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ: 0.1% (~5 mẫu)
+   - Seed   42 | Samples:    5 | Test Acc: 55.31% | Test Macro F1: 50.18%
+   - Seed  123 | Samples:    5 | Test Acc: 37.84% | Test Macro F1: 33.69%
+   - Seed  456 | Samples:    5 | Test Acc: 54.73% | Test Macro F1: 50.64%
+   - Seed  789 | Samples:    5 | Test Acc: 48.63% | Test Macro F1: 46.84%
+   - Seed 2024 | Samples:    5 | Test Acc: 53.61% | Test Macro F1: 47.80%
+👉 KẾT QUẢ TỶ LỆ 0.1%: Macro F1 = 45.83 ± 6.23% | Acc = 50.02 ± 6.53%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ: 0.5% (~29 mẫu)
+   - Seed   42 | Samples:   29 | Test Acc: 71.04% | Test Macro F1: 71.51%
+   - Seed  123 | Samples:   29 | Test Acc: 57.88% | Test Macro F1: 55.89%
+   - Seed  456 | Samples:   29 | Test Acc: 71.16% | Test Macro F1: 71.20%
+   - Seed  789 | Samples:   29 | Test Acc: 67.43% | Test Macro F1: 67.73%
+   - Seed 2024 | Samples:   29 | Test Acc: 73.24% | Test Macro F1: 73.53%
+👉 KẾT QUẢ TỶ LỆ 0.5%: Macro F1 = 67.97 ± 6.32% | Acc = 68.15 ± 5.46%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ: 1.0% (~59 mẫu)
+   - Seed   42 | Samples:   59 | Test Acc: 72.74% | Test Macro F1: 72.56%
+   - Seed  123 | Samples:   59 | Test Acc: 76.51% | Test Macro F1: 76.91%
+   - Seed  456 | Samples:   59 | Test Acc: 72.90% | Test Macro F1: 72.91%
+   - Seed  789 | Samples:   59 | Test Acc: 72.49% | Test Macro F1: 72.68%
+   - Seed 2024 | Samples:   59 | Test Acc: 76.76% | Test Macro F1: 77.39%
+👉 KẾT QUẢ TỶ LỆ 1.0%: Macro F1 = 74.49 ± 2.18% | Acc = 74.28 ± 1.93%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ: 5.0% (~297 mẫu)
+   - Seed   42 | Samples:  297 | Test Acc: 84.98% | Test Macro F1: 85.45%
+   - Seed  123 | Samples:  297 | Test Acc: 84.36% | Test Macro F1: 84.94%
+   - Seed  456 | Samples:  297 | Test Acc: 84.52% | Test Macro F1: 85.02%
+   - Seed  789 | Samples:  297 | Test Acc: 87.88% | Test Macro F1: 88.22%
+   - Seed 2024 | Samples:  297 | Test Acc: 84.36% | Test Macro F1: 84.98%
+👉 KẾT QUẢ TỶ LỆ 5.0%: Macro F1 = 85.72 ± 1.26% | Acc = 85.22 ± 1.35%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ: 10.0% (~594 mẫu)
+   - Seed   42 | Samples:  594 | Test Acc: 88.67% | Test Macro F1: 89.06%
+   - Seed  123 | Samples:  594 | Test Acc: 85.98% | Test Macro F1: 86.37%
+   - Seed  456 | Samples:  594 | Test Acc: 86.68% | Test Macro F1: 86.54%
+   - Seed  789 | Samples:  594 | Test Acc: 90.04% | Test Macro F1: 90.32%
+   - Seed 2024 | Samples:  594 | Test Acc: 88.26% | Test Macro F1: 88.64%
+👉 KẾT QUẢ TỶ LỆ 10.0%: Macro F1 = 88.19 ± 1.52% | Acc = 87.93 ± 1.45%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ: 100.0% (~5945 mẫu)
+   - Seed   42 | Samples: 5945 | Test Acc: 94.15% | Test Macro F1: 94.25%
+   - Seed  123 | Samples: 5945 | Test Acc: 95.77% | Test Macro F1: 95.84%
+   - Seed  456 | Samples: 5945 | Test Acc: 95.68% | Test Macro F1: 95.72%
+   - Seed  789 | Samples: 5945 | Test Acc: 94.69% | Test Macro F1: 94.78%
+   - Seed 2024 | Samples: 5945 | Test Acc: 94.48% | Test Macro F1: 94.53%
+👉 KẾT QUẢ TỶ LỆ 100.0%: Macro F1 = 95.02 ± 0.64% | Acc = 94.95 ± 0.65%
+
+=====================================================================================
+🏆 BẢNG TỔNG HỢP HIỆU NĂNG FEW-SHOT ADAPTATION (UCI-HAR)
+=====================================================================================
+Label %      | Mẫu (Samples)   | Macro F1 (%)           | Accuracy (%)        
+-------------------------------------------------------------------------------------
+0.1       % | 5               |  45.83 ±  6.23%      |  50.02 ±  6.53%
+0.5       % | 29              |  67.97 ±  6.32%      |  68.15 ±  5.46%
+1.0       % | 59              |  74.49 ±  2.18%      |  74.28 ±  1.93%
+5.0       % | 297             |  85.72 ±  1.26%      |  85.22 ±  1.35%
+10.0      % | 594             |  88.19 ±  1.52%      |  87.93 ±  1.45%
+100.0     % | 5945            |  95.02 ±  0.64%      |  94.95 ±  0.65%
+=====================================================================================

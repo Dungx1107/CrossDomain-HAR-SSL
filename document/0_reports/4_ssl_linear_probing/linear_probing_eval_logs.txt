@@ -1,0 +1,70 @@
+=====================================================================================
+🚀 BẮT ĐẦU ĐÁNH GIÁ LINEAR PROBING TRÊN MOTIONSENSE (FROZEN BACKBONE)
+🖥️ Thiết bị sử dụng : cuda
+💾 File lưu logs     : /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/4_ssl_linear_probing/linear_probing_eval_logs.txt
+=====================================================================================
+📦 Tổng tập Train: 12375 | Val: 3711 | Test: 5453
+-------------------------------------------------------------------------------------
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ NHÃN: 0.1% (Số mẫu ước tính: 12)
+   - Seed   42 | Samples:   12 | Test Acc: 60.81% | Test Macro F1: 54.71%
+   - Seed  123 | Samples:   12 | Test Acc: 47.83% | Test Macro F1: 38.80%
+   - Seed  456 | Samples:   12 | Test Acc: 55.66% | Test Macro F1: 47.92%
+   - Seed  789 | Samples:   12 | Test Acc: 49.81% | Test Macro F1: 44.45%
+   - Seed 2024 | Samples:   12 | Test Acc: 67.28% | Test Macro F1: 64.15%
+👉 KẾT QUẢ TỶ LỆ 0.1%: Macro F1 = 50.01 ± 8.75% | Acc = 56.28 ± 7.15%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ NHÃN: 0.5% (Số mẫu ước tính: 61)
+   - Seed   42 | Samples:   61 | Test Acc: 66.53% | Test Macro F1: 64.86%
+   - Seed  123 | Samples:   61 | Test Acc: 69.67% | Test Macro F1: 67.60%
+   - Seed  456 | Samples:   61 | Test Acc: 69.26% | Test Macro F1: 67.35%
+   - Seed  789 | Samples:   61 | Test Acc: 70.40% | Test Macro F1: 68.43%
+   - Seed 2024 | Samples:   61 | Test Acc: 69.14% | Test Macro F1: 68.33%
+👉 KẾT QUẢ TỶ LỆ 0.5%: Macro F1 = 67.31 ± 1.29% | Acc = 69.00 ± 1.31%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ NHÃN: 1.0% (Số mẫu ước tính: 123)
+   - Seed   42 | Samples:  123 | Test Acc: 72.99% | Test Macro F1: 72.09%
+   - Seed  123 | Samples:  123 | Test Acc: 74.27% | Test Macro F1: 72.33%
+   - Seed  456 | Samples:  123 | Test Acc: 71.78% | Test Macro F1: 69.75%
+   - Seed  789 | Samples:  123 | Test Acc: 71.63% | Test Macro F1: 70.29%
+   - Seed 2024 | Samples:  123 | Test Acc: 73.61% | Test Macro F1: 73.82%
+👉 KẾT QUẢ TỶ LỆ 1.0%: Macro F1 = 71.65 ± 1.47% | Acc = 72.86 ± 1.03%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ NHÃN: 5.0% (Số mẫu ước tính: 618)
+   - Seed   42 | Samples:  618 | Test Acc: 80.32% | Test Macro F1: 80.30%
+   - Seed  123 | Samples:  618 | Test Acc: 80.45% | Test Macro F1: 79.54%
+   - Seed  456 | Samples:  618 | Test Acc: 78.62% | Test Macro F1: 78.86%
+   - Seed  789 | Samples:  618 | Test Acc: 80.89% | Test Macro F1: 80.39%
+   - Seed 2024 | Samples:  618 | Test Acc: 79.26% | Test Macro F1: 79.23%
+👉 KẾT QUẢ TỶ LỆ 5.0%: Macro F1 = 79.66 ± 0.60% | Acc = 79.91 ± 0.84%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ NHÃN: 10.0% (Số mẫu ước tính: 1237)
+   - Seed   42 | Samples: 1237 | Test Acc: 81.86% | Test Macro F1: 81.63%
+   - Seed  123 | Samples: 1237 | Test Acc: 82.54% | Test Macro F1: 82.29%
+   - Seed  456 | Samples: 1237 | Test Acc: 80.54% | Test Macro F1: 80.25%
+   - Seed  789 | Samples: 1237 | Test Acc: 81.53% | Test Macro F1: 81.13%
+   - Seed 2024 | Samples: 1237 | Test Acc: 81.53% | Test Macro F1: 81.47%
+👉 KẾT QUẢ TỶ LỆ 10.0%: Macro F1 = 81.35 ± 0.67% | Acc = 81.60 ± 0.65%
+
+▶️ ĐANG THỬ NGHIỆM TỶ LỆ NHÃN: 100.0% (Số mẫu ước tính: 12375)
+   - Seed   42 | Samples: 12375 | Test Acc: 83.18% | Test Macro F1: 82.66%
+     💾 [Auto-Save] Đã lưu Source Model 100% Linear Probing tốt nhất (Val F1: 88.63%) tại: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/motionsense_linear_probed_best.pt
+   - Seed  123 | Samples: 12375 | Test Acc: 82.69% | Test Macro F1: 82.35%
+     💾 [Auto-Save] Đã lưu Source Model 100% Linear Probing tốt nhất (Val F1: 89.83%) tại: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/motionsense_linear_probed_best.pt
+   - Seed  456 | Samples: 12375 | Test Acc: 82.34% | Test Macro F1: 82.01%
+   - Seed  789 | Samples: 12375 | Test Acc: 82.74% | Test Macro F1: 82.27%
+   - Seed 2024 | Samples: 12375 | Test Acc: 82.87% | Test Macro F1: 82.51%
+👉 KẾT QUẢ TỶ LỆ 100.0%: Macro F1 = 82.36 ± 0.22% | Acc = 82.77 ± 0.27%
+
+=====================================================================================
+🏆 BẢNG TỔNG HỢP HIỆU NĂNG LINEAR PROBING (MEAN ± STD QUA 5 SEEDS)
+=====================================================================================
+Label %      | Mẫu (Samples)   | Macro F1 (%)           | Accuracy (%)        
+-------------------------------------------------------------------------------------
+0.1       % | 12              |  50.01 ±  8.75%       |  56.28 ±  7.15%
+0.5       % | 61              |  67.31 ±  1.29%       |  69.00 ±  1.31%
+1.0       % | 123             |  71.65 ±  1.47%       |  72.86 ±  1.03%
+5.0       % | 618             |  79.66 ±  0.60%       |  79.91 ±  0.84%
+10.0      % | 1237            |  81.35 ±  0.67%       |  81.60 ±  0.65%
+100.0     % | 12375           |  82.36 ±  0.22%       |  82.77 ±  0.27%
+=====================================================================================

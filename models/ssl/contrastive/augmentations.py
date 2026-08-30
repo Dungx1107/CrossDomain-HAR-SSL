@@ -41,17 +41,6 @@ def time_warp(x, sigma=0.2, num_knots=4):
     return x_warped
 
 
-def permutation(x, max_segments=4):
-    """Chia tín hiệu thành N đoạn con và xáo trộn ngẫu nhiên."""
-    C, T = x.shape
-    seg_len = T // max_segments
-    segments = [
-        x[:, i * seg_len: (i + 1) * seg_len if i < max_segments - 1 else T]
-        for i in range(max_segments)
-    ]
-    np.random.shuffle(segments)
-    return np.concatenate(segments, axis=1)
-
 
 # =============================================================================
 # BỘ PHỐI HỢP WEAK & STRONG AUGMENTATION
@@ -77,7 +66,6 @@ class TS_TCC_Augmentation:
         return x_aug
 
     def strong_transform(self, x):
-        """View mạnh: Kết hợp Permutation và Time-Warping."""
         return jitter(time_warp(x, sigma=self.warp_sigma), sigma=self.jitter_sigma * 1.5)
 
     def __call__(self, x):

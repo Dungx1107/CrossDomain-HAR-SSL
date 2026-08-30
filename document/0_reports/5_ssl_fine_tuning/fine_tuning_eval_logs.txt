@@ -1,0 +1,69 @@
+=====================================================================================
+🚀 BẮT ĐẦU ĐÁNH GIÁ FULL FINE-TUNING TRÊN MOTIONSENSE (LAYER-WISE LR)
+🖥️ Thiết bị sử dụng : cuda
+💾 File lưu logs     : /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/5_ssl_fine_tuning/fine_tuning_eval_logs.txt
+=====================================================================================
+📦 Tổng tập Train: 12375 | Val: 3711 | Test: 5453
+-------------------------------------------------------------------------------------
+
+▶️ ĐANG THỬ NGHIỆM FINE-TUNE TỶ LỆ: 0.1%
+   - Seed   42 | Samples:   12 | Test Acc: 68.53% | Test Macro F1: 60.72%
+   - Seed  123 | Samples:   12 | Test Acc: 50.49% | Test Macro F1: 43.04%
+   - Seed  456 | Samples:   12 | Test Acc: 56.98% | Test Macro F1: 48.99%
+   - Seed  789 | Samples:   12 | Test Acc: 52.04% | Test Macro F1: 46.00%
+   - Seed 2024 | Samples:   12 | Test Acc: 69.94% | Test Macro F1: 65.81%
+👉 KẾT QUẢ TỶ LỆ 0.1%: Macro F1 = 52.91 ± 8.81% | Acc = 59.60 ± 8.17%
+
+▶️ ĐANG THỬ NGHIỆM FINE-TUNE TỶ LỆ: 0.5%
+   - Seed   42 | Samples:   61 | Test Acc: 74.89% | Test Macro F1: 73.32%
+   - Seed  123 | Samples:   61 | Test Acc: 73.94% | Test Macro F1: 72.31%
+   - Seed  456 | Samples:   61 | Test Acc: 69.26% | Test Macro F1: 67.59%
+   - Seed  789 | Samples:   61 | Test Acc: 75.30% | Test Macro F1: 74.63%
+   - Seed 2024 | Samples:   61 | Test Acc: 68.84% | Test Macro F1: 67.52%
+👉 KẾT QUẢ TỶ LỆ 0.5%: Macro F1 = 71.07 ± 2.97% | Acc = 72.45 ± 2.81%
+
+▶️ ĐANG THỬ NGHIỆM FINE-TUNE TỶ LỆ: 1.0%
+   - Seed   42 | Samples:  123 | Test Acc: 77.46% | Test Macro F1: 76.88%
+   - Seed  123 | Samples:  123 | Test Acc: 74.51% | Test Macro F1: 72.57%
+   - Seed  456 | Samples:  123 | Test Acc: 74.53% | Test Macro F1: 73.85%
+   - Seed  789 | Samples:  123 | Test Acc: 75.99% | Test Macro F1: 75.90%
+   - Seed 2024 | Samples:  123 | Test Acc: 75.13% | Test Macro F1: 75.25%
+👉 KẾT QUẢ TỶ LỆ 1.0%: Macro F1 = 74.89 ± 1.52% | Acc = 75.53 ± 1.11%
+
+▶️ ĐANG THỬ NGHIỆM FINE-TUNE TỶ LỆ: 5.0%
+   - Seed   42 | Samples:  618 | Test Acc: 82.05% | Test Macro F1: 82.45%
+   - Seed  123 | Samples:  618 | Test Acc: 85.86% | Test Macro F1: 85.72%
+   - Seed  456 | Samples:  618 | Test Acc: 80.93% | Test Macro F1: 80.78%
+   - Seed  789 | Samples:  618 | Test Acc: 84.67% | Test Macro F1: 84.52%
+   - Seed 2024 | Samples:  618 | Test Acc: 82.41% | Test Macro F1: 82.69%
+👉 KẾT QUẢ TỶ LỆ 5.0%: Macro F1 = 83.23 ± 1.72% | Acc = 83.18 ± 1.81%
+
+▶️ ĐANG THỬ NGHIỆM FINE-TUNE TỶ LỆ: 10.0%
+   - Seed   42 | Samples: 1237 | Test Acc: 84.60% | Test Macro F1: 84.55%
+   - Seed  123 | Samples: 1237 | Test Acc: 85.70% | Test Macro F1: 85.55%
+   - Seed  456 | Samples: 1237 | Test Acc: 83.99% | Test Macro F1: 83.85%
+   - Seed  789 | Samples: 1237 | Test Acc: 83.68% | Test Macro F1: 83.84%
+   - Seed 2024 | Samples: 1237 | Test Acc: 85.59% | Test Macro F1: 85.70%
+👉 KẾT QUẢ TỶ LỆ 10.0%: Macro F1 = 84.70 ± 0.80% | Acc = 84.71 ± 0.82%
+
+▶️ ĐANG THỬ NGHIỆM FINE-TUNE TỶ LỆ: 100.0%
+   - Seed   42 | Samples: 12375 | Test Acc: 86.06% | Test Macro F1: 85.23%
+   - Seed  123 | Samples: 12375 | Test Acc: 85.44% | Test Macro F1: 84.26%
+   - Seed  456 | Samples: 12375 | Test Acc: 85.92% | Test Macro F1: 84.73%
+   - Seed  789 | Samples: 12375 | Test Acc: 85.81% | Test Macro F1: 84.69%
+   - Seed 2024 | Samples: 12375 | Test Acc: 84.41% | Test Macro F1: 83.48%
+     💾 [Auto-Save] Đã lưu Source Model 100% tốt nhất (Val F1: 91.31%) tại: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/motionsense_full_finetuned_best.pt
+👉 KẾT QUẢ TỶ LỆ 100.0%: Macro F1 = 84.48 ± 0.59% | Acc = 85.53 ± 0.59%
+
+=====================================================================================
+🏆 BẢNG TỔNG HỢP HIỆU NĂNG FULL FINE-TUNING (MEAN ± STD QUA 5 SEEDS)
+=====================================================================================
+Label %      | Mẫu (Samples)   | Macro F1 (%)           | Accuracy (%)        
+-------------------------------------------------------------------------------------
+0.1       % | 12              |  52.91 ±  8.81%       |  59.60 ±  8.17%
+0.5       % | 61              |  71.07 ±  2.97%       |  72.45 ±  2.81%
+1.0       % | 123             |  74.89 ±  1.52%       |  75.53 ±  1.11%
+5.0       % | 618             |  83.23 ±  1.72%       |  83.18 ±  1.81%
+10.0      % | 1237            |  84.70 ±  0.80%       |  84.71 ±  0.82%
+100.0     % | 12375           |  84.48 ±  0.59%       |  85.53 ±  0.59%
+=====================================================================================

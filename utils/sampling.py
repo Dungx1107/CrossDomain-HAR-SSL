@@ -22,12 +22,10 @@ RATIO = 0.1  # 0.05, 0.01
 def get_stratified_few_label_indices(labels, ratio=RATIO, seed=SEEDS[0]):
     """
     Trích xuất chỉ số (indices) của một tỷ lệ dữ liệu nhất định bảo toàn phân phối nhãn.
-
     Args:
         labels (np.ndarray hoặc list): Mảng chứa nhãn số nguyên của toàn bộ tập Train.
         ratio (float): Tỷ lệ lấy mẫu (ví dụ: 0.01, 0.05, 0.10).
         seed (int): Random seed.
-
     Returns:
         np.ndarray: Mảng chứa các index được chọn.
     """
@@ -53,7 +51,32 @@ def create_few_label_subset(dataset, ratio=RATIO, seed=SEEDS[0]):
         labels = dataset.labels
     else:
         labels = [dataset[i][1] for i in range(len(dataset))]
-        #cú pháp gọi hàm __getitem__(i) được định nghĩa trong class Dataset.
+        # cú pháp gọi hàm __getitem__(i) được định nghĩa trong class Dataset.
 
     selected_idx = get_stratified_few_label_indices(labels, ratio=ratio, seed=seed)
     return Subset(dataset, selected_idx), selected_idx
+
+
+# hàm lấy mẫu phân tầng trên uci
+# Hàm StratifiedShuffleSplit thuộc thư viện scikit-learn. Thuật toán này không nhận PyTorch Tensor, nó bắt buộc đầu vào phải là mảng NumPy (np.ndarray) thì mới tính toán chia phân tầng được.
+def sample_subset_by_ratio(
+        x_all,
+        y_all,
+        fraction,
+        seed=42):
+    if fraction >= 1:
+        return x_all.clone(), y_all.clone()
+    num_classes = len(torch.unique(y_all))
+    n_samples = max(num_classes, int(len(x_all) * fraction))
+
+    # xử lí nếu đầu vào là tensor (phải chuyển sang numpy vì hàm lấy mẫu phân tầng chỉ hiểu numpy)
+    y_np = y_all.detach().cpu().numpy() if isinstance(y_all, torch.Tensor) else y_all
+    x_np = x_all.detach().cpu().numpy() if isinstance(x_all, torch.Tensor) else x_all
+
+    sss = StratifiedShuffleSplit(
+        n_splits=1,
+        train_size=n_samples,
+        random_state=seed
+    )
+    train_idx, _ = next(sss.split(x_np, y_np))
+    return x_all[train_idx], y_all[train_idx]

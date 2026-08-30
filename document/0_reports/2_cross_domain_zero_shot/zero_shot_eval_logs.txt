@@ -1,0 +1,36 @@
+================================================================================
+🚀 BẮT ĐẦU ĐÁNH GIÁ ZERO-SHOT CROSS-DOMAIN (MotionSense -> UCI-HAR)
+🖥️ Thiết bị sử dụng : cuda
+💾 File lưu kết quả  : /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/0_reports/2_cross_domain_zero_shot/zero_shot_eval_logs.txt
+================================================================================
+📦 Đã nạp tập Test UCI-HAR : 2410 mẫu | Kích thước: torch.Size([2410, 6, 128])
+🎯 Số lượng lớp đánh giá  : 5 lớp chung ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
+✅ Đã nạp thành công trọng số SSL Encoder từ: /home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/tstcc_encoder_pretrained_motionsense.pt
+
+================================================================================
+🎯 Zero-shot Test Accuracy   : 3.69%
+🏆 Zero-shot Test Macro F1   : 3.97% (Thước đo chính)
+⚖️ Zero-shot Test Weighted F1 : 3.80%
+================================================================================
+
+📋 BẢNG THỐNG KÊ CHI TIẾT TỪNG LỚP HÀNH ĐỘNG:
+              precision    recall  f1-score   support
+
+     Walking     0.0000    0.0000    0.0000       496
+    Upstairs     0.3333    0.0849    0.1354       471
+  Downstairs     0.0319    0.0810    0.0458       420
+     Sitting     0.0123    0.0305    0.0175       491
+    Standing     0.0000    0.0000    0.0000       532
+
+    accuracy                         0.0369      2410
+   macro avg     0.0755    0.0393    0.0397      2410
+weighted avg     0.0732    0.0369    0.0380      2410
+
+🔍 MA TRẬN NHẦM LẪN (SỐ LƯỢNG MẪU):
+[[  0  10   0 486   0]
+ [  0  40  45 386   0]
+ [  0  69  34 317   0]
+ [  2   0 474  15   0]
+ [  0   1 513  18   0]]
+================================================================================
+✅ Hoàn tất đánh giá. Toàn bộ log đã được lưu lại thành công!

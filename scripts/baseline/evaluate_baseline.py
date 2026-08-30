@@ -19,7 +19,7 @@ if PROJECT_ROOT not in sys.path:
 
 from config.motionsense_config import MotionSenseConfig
 from datasets.motionsense.loader import get_motionsense_dataloaders
-from models.baseline.supervised_model import SupervisedHARModel
+from models.har_classifier import HARClassifier
 from training.evaluator import ModelEvaluator
 from utils.logger import ExperimentTracker
 from utils.complexity import measure_model_complexity, print_complexity_report
@@ -46,10 +46,11 @@ def main():
         _, _, test_loader = get_motionsense_dataloaders()
 
         # 3. Khởi tạo mô hình và nạp trọng số đã lưu
-        model = SupervisedHARModel(
+        model = HARClassifier(
             in_channels=MotionSenseConfig.IN_CHANNELS,
             num_classes=MotionSenseConfig.NUM_CLASSES
         ).to(device)
+
         model.load_state_dict(torch.load(checkpoint_path, map_location=device))
         print("✅ Đã nạp thành công trọng số từ Checkpoint.")
 
