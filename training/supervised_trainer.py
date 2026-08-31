@@ -1,128 +1,100 @@
+"""
+===============================================================================
+MỤC ĐÍCH:
+    Cung cấp Engine điều phối toàn bộ quá trình huấn luyện và đánh giá mô hình
+    có giám sát (Supervised Learning).
+===============================================================================
+"""
+
 import os
-import sys
-import argparse
-from pathlib import Path
-import numpy as np
+import time
 import torch
 import torch.nn as nn
-
-# Tự động xác định thư mục gốc của project
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(PROJECT_ROOT))
-
-# TẬN DỤNG CÁC MODULE SẴN CÓ TRONG REPO
-from models.encoder import TSTCCEncoder
-from models.classifier import HARClassifier
-from datasets.kfold_splitter import get_kfold_loaders
-from training.supervised_trainer import SupervisedTrainer
-from training.evaluator import ModelEvaluator
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from sklearn.metrics import accuracy_score, f1_score
 
 
-def train_fold_engine(model, train_loader, optimizer, criterion, epochs):
+class SupervisedTrainer:
     """
-    Tận dụng SupervisedTrainer để thực thi vòng lặp huấn luyện thuần túy cho từng Fold.
+    Engine điều phối huấn luyện và kiểm thử mô hình có giám sát.
     """
-    trainer = SupervisedTrainer(
-        model=model,
-        optimizer=optimizer,
-        criterion=criterion,
-        device=device,
-        tracker=None,           # Không tạo log file lẻ tẻ cho từng fold
-        checkpoint_path="",     # Không ghi checkpoint đè lên đĩa
-        scheduler=None
-    )
 
-    for epoch in range(1, epochs + 1):
-        trainer.train_one_epoch(train_loader)
+    def __init__(
+            self,
+            model: nn.Module,
+            optimizer: torch.optim.Optimizer,
+            criterion: nn.Module,
+            device: torch.device,
+            tracker=None,
+            checkpoint_path: str = "",
+            scheduler=None,
+    ):
+        self.model = model
+        self.optimizer = optimizer
+        self.criterion = criterion
+        self.device = device
+        self.tracker = tracker
+        self.checkpoint_path = checkpoint_path
+        self.scheduler = scheduler
+        self.best_val_f1 = 0.0
 
+    def train_one_epoch(self, dataloader):
+        """
+        Thực thi 1 vòng lặp huấn luyện qua toàn bộ dataloader.
+        """
+        self.model.train()
 
-def run_kfold_supervised(dataset_name="motionsense", k=5, epochs=30, lr=1e-3, batch_size=64):
-    """
-    Điều phối luồng chạy K-Fold: chia dữ liệu, huấn luyện và tổng hợp kết quả.
-    """
-    fold_loaders, num_classes = get_kfold_loaders(
-        dataset_name=dataset_name,
-        k=k,
-        batch_size=batch_size
-    )
+        total_loss = 0.0
+        all_preds = []
+        all_targets = []
 
-    evaluator = ModelEvaluator(device=device)
-    acc_list, f1_list = [], []
+        for x_batch, y_batch in dataloader:
+            x_batch = x_batch.to(self.device)
+            y_batch = y_batch.to(self.device)
 
-    print(f"\n---> [Dataset: {dataset_name.upper()} | K = {k} | Epochs = {epochs} | Device = {device}]")
+            self.optimizer.zero_grad()
+            logits = self.model(x_batch)
+            loss = self.criterion(logits, y_batch)
+            loss.backward()
+            self.optimizer.step()
 
-    for fold_idx, (train_loader, test_loader) in enumerate(fold_loaders, 1):
-        # 1. Khởi tạo mô hình mới (From Scratch) cho từng fold
-        encoder = TSTCCEncoder(in_channels=9).to(device)
-        model = HARClassifier(encoder=encoder, num_classes=num_classes).to(device)
+            total_loss += loss.item() * len(y_batch)
+            preds = torch.argmax(logits, dim=1)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-        criterion = nn.CrossEntropyLoss()
+            all_preds.extend(preds.cpu().numpy())
+            all_targets.extend(y_batch.cpu().numpy())
 
-        # 2. Huấn luyện qua Engine SupervisedTrainer
-        train_fold_engine(model, train_loader, optimizer, criterion, epochs)
+        epoch_loss = total_loss / len(dataloader.dataset)
+        epoch_acc = accuracy_score(all_targets, all_preds)
+        epoch_f1 = f1_score(all_targets, all_preds, average="macro")
 
-        # 3. Đánh giá qua Engine ModelEvaluator
-        metrics = evaluator.evaluate(model=model, test_loader=test_loader, title_prefix=f"Fold {fold_idx}/{k}")
+        return epoch_loss, epoch_acc, epoch_f1
 
-        # Thang đo trong ModelEvaluator là [0, 1] nên quy đổi sang %
-        acc = metrics["accuracy"] * 100
-        f1 = metrics["macro_f1"] * 100
+    def evaluate(self, dataloader):
+        """
+        Đánh giá hiệu năng mô hình trên dataloader.
+        """
+        self.model.eval()
 
-        acc_list.append(acc)
-        f1_list.append(f1)
-        print(f"  • Kết quả Fold {fold_idx}/{k} -> Accuracy: {acc:.2f}% | Macro F1: {f1:.2f}%")
+        total_loss = 0.0
+        all_preds = []
+        all_targets = []
 
-    mean_acc, std_acc = np.mean(acc_list), np.std(acc_list)
-    mean_f1, std_f1 = np.mean(f1_list), np.std(f1_list)
+        with torch.no_grad():
+            for x_batch, y_batch in dataloader:
+                x_batch = x_batch.to(self.device)
+                y_batch = y_batch.to(self.device)
 
-    print(f"  ⭐ TỔNG KẾT K={k} -> Acc: {mean_acc:.2f} ± {std_acc:.2f}% | F1: {mean_f1:.2f} ± {std_f1:.2f}%")
-    return mean_acc, std_acc, mean_f1, std_f1
+                logits = self.model(x_batch)
+                loss = self.criterion(logits, y_batch)
 
+                total_loss += loss.item() * len(y_batch)
+                preds = torch.argmax(logits, dim=1)
 
-def main():
-    parser = argparse.ArgumentParser(description="K-Fold Supervised Baseline Evaluation")
-    parser.add_argument("--dataset", type=str, default="motionsense", help="Tên dataset (motionsense, uci_har,...)")
-    parser.add_argument("--k_list", nargs="+", type=int, default=[3, 5, 7, 10], help="Danh sách K cần chạy")
-    parser.add_argument("--epochs", type=int, default=30, help="Số epoch cho mỗi fold")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
-    parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
-    args = parser.parse_args()
+                all_preds.extend(preds.cpu().numpy())
+                all_targets.extend(y_batch.cpu().numpy())
 
-    report_dir = PROJECT_ROOT / "document" / "0_reports" / "7_kfold_evaluation"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"baseline_{args.dataset}_kfold_report.txt"
+        eval_loss = total_loss / len(dataloader.dataset)
+        eval_acc = accuracy_score(all_targets, all_preds)
+        eval_f1 = f1_score(all_targets, all_preds, average="macro")
 
-    print("=" * 75)
-    print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ SUPERVISED BASELINE K-FOLDS ({args.dataset.upper()})")
-    print("=" * 75)
-
-    summary_rows = []
-    for k in args.k_list:
-        m_acc, s_acc, m_f1, s_f1 = run_kfold_supervised(
-            dataset_name=args.dataset,
-            k=k,
-            epochs=args.epochs,
-            lr=args.lr,
-            batch_size=args.batch_size
-        )
-        row = f"K = {k:2d} | Accuracy: {m_acc:.2f} ± {s_acc:.2f}% | Macro F1: {m_f1:.2f} ± {s_f1:.2f}%"
-        summary_rows.append(row)
-
-    # Ghi toàn bộ kết quả tổng hợp vào báo cáo
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(f"BÁO CÁO K-FOLD SUPERVISED BASELINE - TẬP DỮ LIỆU: {args.dataset.upper()}\n")
-        f.write(f"Cấu hình: Epochs={args.epochs}, LR={args.lr}, Batch Size={args.batch_size}\n")
-        f.write("=" * 75 + "\n")
-        f.write("\n".join(summary_rows) + "\n")
-        f.write("=" * 75 + "\n")
-
-    print("\n" + "=" * 75)
-    print(f"✅ HOÀN TẤT TOÀN BỘ K-FOLDS! Báo cáo đã lưu tại: {report_path}")
-    print("=" * 75)
-
-
-if __name__ == "__main__":
-    main()
+        return eval_loss, eval_acc, eval_f1

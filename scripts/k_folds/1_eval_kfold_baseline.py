@@ -6,68 +6,81 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-# Tự động trỏ về thư mục gốc của project
+# Tự động xác định thư mục gốc của project
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-# TẬN DỤNG TOÀN BỘ CÁC MODULE SẴN CÓ
-from models.encoder import TSTCCEncoder
-from models.classifier import HARClassifier
+# Import chuẩn xác theo cấu trúc dự án
+from models.har_classifier import HARClassifier
 from datasets.kfold_splitter import get_kfold_loaders
 from training.supervised_trainer import SupervisedTrainer
-from training.evaluator import Evaluator
+from training.evaluator import ModelEvaluator
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def train_fold_engine(model, train_loader, optimizer, criterion, epochs):
+    """
+    Tận dụng SupervisedTrainer để thực thi vòng lặp huấn luyện thuần túy cho từng Fold.
+    """
+    trainer = SupervisedTrainer(
+        model=model,
+        optimizer=optimizer,
+        criterion=criterion,
+        device=device,
+        tracker=None,           # Không tạo log file lẻ tẻ cho từng fold
+        checkpoint_path="",     # Không ghi checkpoint đè lên đĩa
+        scheduler=None
+    )
+
+    for epoch in range(1, epochs + 1):
+        trainer.train_one_epoch(train_loader)
+
+
 def run_kfold_supervised(dataset_name="motionsense", k=5, epochs=30, lr=1e-3, batch_size=64):
     """
-    Chạy Supervised Baseline K-Fold bằng cách tái sử dụng Engine Trainer & Evaluator
+    Điều phối luồng chạy K-Fold: chia dữ liệu, huấn luyện và tổng hợp kết quả.
     """
-    # 1. Tận dụng module kfold_splitter để lấy data
-    fold_loaders, num_classes = get_kfold_loaders(
+    fold_loaders, in_channels, num_classes = get_kfold_loaders(
         dataset_name=dataset_name,
         k=k,
         batch_size=batch_size
     )
 
+    evaluator = ModelEvaluator(device=device)
     acc_list, f1_list = [], []
-    print(f"\n---> [Dataset: {dataset_name.upper()} | K = {k} | Epochs = {epochs} | Device = {device}]")
+
+    print(f"\n---> [Dataset: {dataset_name.upper()} | Channels: {in_channels} | Classes: {num_classes} | K = {k} | Epochs = {epochs} | Device = {device}]")
 
     for fold_idx, (train_loader, test_loader) in enumerate(fold_loaders, 1):
-        # 2. Khởi tạo mô hình
-        encoder = TSTCCEncoder(in_channels=9).to(device)
-        model = HARClassifier(encoder=encoder, num_classes=num_classes).to(device)
+        # 1. Khởi tạo mô hình mới (From Scratch) đúng in_channels và num_classes từ dataset
+        model = HARClassifier(
+            in_channels=in_channels,
+            num_classes=num_classes,
+            feature_dim=128
+        ).to(device)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
         criterion = nn.CrossEntropyLoss()
 
-        # 3. Tận dụng SupervisedTrainer sẵn có để huấn luyện
-        trainer = SupervisedTrainer(
-            model=model,
-            train_loader=train_loader,
-            val_loader=test_loader,
-            optimizer=optimizer,
-            criterion=criterion,
-            device=device
-        )
-        trainer.train(epochs=epochs)
+        # 2. Huấn luyện qua Engine SupervisedTrainer
+        train_fold_engine(model, train_loader, optimizer, criterion, epochs)
 
-        # 4. Tận dụng Evaluator sẵn có để tính toán metrics
-        evaluator = Evaluator(model=model, test_loader=test_loader, device=device)
-        metrics = evaluator.evaluate()  # Trả về dict: {'accuracy': ..., 'f1_macro': ...}
+        # 3. Đánh giá qua Engine ModelEvaluator
+        metrics = evaluator.evaluate(model=model, test_loader=test_loader, title_prefix=f"Fold {fold_idx}/{k}")
 
-        acc = metrics["accuracy"]
-        f1 = metrics["f1_macro"]
+        # Thang đo trong ModelEvaluator là [0, 1] nên quy đổi sang %
+        acc = metrics["accuracy"] * 100
+        f1 = metrics["macro_f1"] * 100
 
         acc_list.append(acc)
         f1_list.append(f1)
-        print(f"  • Fold {fold_idx}/{k} | Accuracy: {acc:.2f}% | Macro F1: {f1:.2f}%")
+        print(f"  • Kết quả Fold {fold_idx}/{k} -> Accuracy: {acc:.2f}% | Macro F1: {f1:.2f}%")
 
     mean_acc, std_acc = np.mean(acc_list), np.std(acc_list)
     mean_f1, std_f1 = np.mean(f1_list), np.std(f1_list)
 
-    print(f"  ⭐ K={k} Summary -> Acc: {mean_acc:.2f} ± {std_acc:.2f}% | F1: {mean_f1:.2f} ± {std_f1:.2f}%")
+    print(f"  ⭐ TỔNG KẾT K={k} -> Acc: {mean_acc:.2f} ± {std_acc:.2f}% | F1: {mean_f1:.2f} ± {std_f1:.2f}%")
     return mean_acc, std_acc, mean_f1, std_f1
 
 
@@ -84,9 +97,9 @@ def main():
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"baseline_{args.dataset}_kfold_report.txt"
 
-    print("=" * 70)
-    print(f"🚀 BẮT ĐẦU CHẠY SUPERVISED BASELINE K-FOLDS ({args.dataset.upper()})")
-    print("=" * 70)
+    print("=" * 75)
+    print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ SUPERVISED BASELINE K-FOLDS ({args.dataset.upper()})")
+    print("=" * 75)
 
     summary_rows = []
     for k in args.k_list:
@@ -100,16 +113,17 @@ def main():
         row = f"K = {k:2d} | Accuracy: {m_acc:.2f} ± {s_acc:.2f}% | Macro F1: {m_f1:.2f} ± {s_f1:.2f}%"
         summary_rows.append(row)
 
+    # Ghi toàn bộ kết quả tổng hợp vào báo cáo
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(f"BÁO CÁO K-FOLD SUPERVISED BASELINE - TẬP DỮ LIỆU: {args.dataset.upper()}\n")
         f.write(f"Cấu hình: Epochs={args.epochs}, LR={args.lr}, Batch Size={args.batch_size}\n")
-        f.write("=" * 70 + "\n")
+        f.write("=" * 75 + "\n")
         f.write("\n".join(summary_rows) + "\n")
-        f.write("=" * 70 + "\n")
+        f.write("=" * 75 + "\n")
 
-    print("\n" + "=" * 70)
-    print(f"✅ HOÀN TẤT! Báo cáo đã được lưu vào: {report_path}")
-    print("=" * 70)
+    print("\n" + "=" * 75)
+    print(f"✅ HOÀN TẤT TOÀN BỘ K-FOLDS! Báo cáo đã lưu tại: {report_path}")
+    print("=" * 75)
 
 
 if __name__ == "__main__":

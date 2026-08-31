@@ -3,38 +3,28 @@ import sys
 from pathlib import Path
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import StratifiedKFold
 
+# Tự động lấy đường dẫn root của project
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from datasets.base_dataset import HARDataset
 
-
-def get_kfold_loaders(dataset_name="motionsense", k=5, batch_size=64, seed=42, num_workers=2):
+def get_kfold_loaders(dataset_name="motionsense", k=5, batch_size=64, seed=42, num_workers=0):
     """
-    Nạp dataset .pt đã chuẩn hóa và chia thành K Folds (Stratified).
-
-    Args:
-        dataset_name (str): Tên dataset ('motionsense', 'uci_har',...)
-        k (int): Số lượng folds
-        batch_size (int): Kích thước batch cho DataLoader
-        seed (int): Random seed cố định
-        num_workers (int): Số worker nạp dữ liệu
-
-    Returns:
-        list of tuples: [(train_loader_1, test_loader_1), ..., (train_loader_k, test_loader_k)]
-        int: Số lượng class duy nhất
+    Nạp dữ liệu đã xử lý từ data/processed/{dataset_name}/dataset_all.pt
+    và phân chia thành K Folds có phân tầng (Stratified K-Fold).
     """
     data_path = PROJECT_ROOT / "data" / "processed" / dataset_name / "dataset_all.pt"
     if not data_path.exists():
-        raise FileNotFoundError(f"Không tìm thấy dữ liệu tại: {data_path}")
+        raise FileNotFoundError(f"Không tìm thấy file dữ liệu tại: {data_path}")
 
     data = torch.load(data_path, map_location="cpu")
     X = data["samples"]
     y = data["labels"].squeeze()
 
+    # Chuyển đổi định dạng an toàn
     if isinstance(X, np.ndarray):
         X = torch.from_numpy(X).float()
     else:
@@ -45,13 +35,17 @@ def get_kfold_loaders(dataset_name="motionsense", k=5, batch_size=64, seed=42, n
     else:
         y = y.long()
 
+    # Xác định số kênh cảm biến (in_channels) và số lớp (num_classes)
+    in_channels = X.shape[1]
     num_classes = len(torch.unique(y))
+
     skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=seed)
 
     fold_loaders = []
     for fold, (train_idx, test_idx) in enumerate(skf.split(X, y.numpy())):
-        train_ds = HARDataset(X[train_idx], y[train_idx])
-        test_ds = HARDataset(X[test_idx], y[test_idx])
+        # Sử dụng trực tiếp TensorDataset của PyTorch
+        train_ds = TensorDataset(X[train_idx], y[train_idx])
+        test_ds = TensorDataset(X[test_idx], y[test_idx])
 
         train_loader = DataLoader(
             train_ds,
@@ -69,4 +63,4 @@ def get_kfold_loaders(dataset_name="motionsense", k=5, batch_size=64, seed=42, n
         )
         fold_loaders.append((train_loader, test_loader))
 
-    return fold_loaders, num_classes
+    return fold_loaders, in_channels, num_classes
