@@ -9,9 +9,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.motionsense_config import MotionSenseConfig
 from config.uci_har_config import UCIHARConfig
-from datasets.motionsense.dataset import MotionSenseDataset
 from models.ssl.contrastive.augmentations import TS_TCC_Augmentation
 from models.encoders.cnn1d import StandardSensorEncoder1D
 from models.ssl.contrastive.ts_tcc_model import TSTCCModel
