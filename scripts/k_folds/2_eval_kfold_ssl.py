@@ -48,9 +48,9 @@ def load_pretrained_encoder(model, checkpoint_path):
     model.encoder.load_state_dict(state_dict, strict=False)
 
 
-def train_fold_engine(model, train_loader, optimizer, criterion, epochs, desc_prefix=""):
+def train_fold_engine(model, train_loader, optimizer, criterion, epochs):
     """
-    Huấn luyện qua các epoch có thanh tiến trình tqdm.
+    Huấn luyện hoàn toàn im lặng, không in rác ra màn hình.
     """
     trainer = SupervisedTrainer(
         model=model,
@@ -61,25 +61,13 @@ def train_fold_engine(model, train_loader, optimizer, criterion, epochs, desc_pr
         checkpoint_path="",
         scheduler=None
     )
-
-    epoch_bar = tqdm(range(1, epochs + 1), desc=desc_prefix, leave=False)
-    for epoch in epoch_bar:
-        result = trainer.train_one_epoch(train_loader)
-
-        # Xử lý an toàn: nếu trả về tuple (loss, acc) hoặc float
-        if isinstance(result, tuple):
-            loss_val = result[0]
-            postfix_dict = {"loss": f"{loss_val:.4f}"}
-            if len(result) > 1 and isinstance(result[1], (int, float)):
-                postfix_dict["acc"] = f"{result[1]:.2f}%"
-            epoch_bar.set_postfix(postfix_dict)
-        elif isinstance(result, (int, float)):
-            epoch_bar.set_postfix({"loss": f"{result:.4f}"})
+    for _ in range(epochs):
+        trainer.train_one_epoch(train_loader)
 
 
 def run_single_mode(target_dataset, checkpoint_path, mode, k, epochs, lr, batch_size):
     """
-    Chạy K-Fold cho một chế độ cụ thể (linear_probe hoặc fine_tune) kèm thanh tiến trình fold.
+    Chạy K-Fold với duy nhất 1 thanh tiến trình tổng thể cho toàn bộ Fold.
     """
     fold_loaders, in_channels, num_classes = get_kfold_loaders(
         dataset_name=target_dataset,
@@ -90,10 +78,11 @@ def run_single_mode(target_dataset, checkpoint_path, mode, k, epochs, lr, batch_
     evaluator = ModelEvaluator(device=device)
     acc_list, f1_list = [], []
 
-    print(f"\n---> [MODE: {mode.upper()} | Target: {target_dataset.upper()} | K = {k} | Epochs = {epochs} | LR = {lr}]")
+    print(f"\n---> [{mode.upper()}] Target: {target_dataset.upper()} | K = {k} | Epochs = {epochs} | LR = {lr}")
 
-    fold_bar = tqdm(enumerate(fold_loaders, 1), total=k, desc=f"Progress [{mode.upper()} K={k}]")
-    for fold_idx, (train_loader, test_loader) in fold_bar:
+    # Chỉ dùng 1 thanh tiến trình duy nhất cho toàn bộ các Fold của K hiện tại
+    pbar = tqdm(enumerate(fold_loaders, 1), total=k, desc=f"{mode.upper()} (K={k})", ncols=90)
+    for fold_idx, (train_loader, test_loader) in pbar:
         model = HARClassifier(
             in_channels=in_channels,
             num_classes=num_classes,
@@ -116,28 +105,21 @@ def run_single_mode(target_dataset, checkpoint_path, mode, k, epochs, lr, batch_
         optimizer = torch.optim.Adam(trainable_params, lr=lr, weight_decay=1e-4)
         criterion = nn.CrossEntropyLoss()
 
-        train_fold_engine(
-            model=model,
-            train_loader=train_loader,
-            optimizer=optimizer,
-            criterion=criterion,
-            epochs=epochs,
-            desc_prefix=f"  Epochs (Fold {fold_idx}/{k})"
-        )
+        # Train êm, không spam
+        train_fold_engine(model, train_loader, optimizer, criterion, epochs)
 
-        metrics = evaluator.evaluate(model=model, test_loader=test_loader,
-                                     title_prefix=f"{mode.upper()} - Fold {fold_idx}/{k}")
+        # Đánh giá nhanh
+        metrics = evaluator.evaluate(model=model, test_loader=test_loader, verbose=False)
         acc = metrics["accuracy"] * 100
         f1 = metrics["macro_f1"] * 100
 
         acc_list.append(acc)
         f1_list.append(f1)
-        fold_bar.set_postfix({"Acc": f"{acc:.2f}%", "F1": f"{f1:.2f}%"})
+        pbar.set_postfix({"Last_Acc": f"{acc:.2f}%", "Last_F1": f"{f1:.2f}%"})
 
     mean_acc, std_acc = np.mean(acc_list), np.std(acc_list)
     mean_f1, std_f1 = np.mean(f1_list), np.std(f1_list)
-    print(
-        f"\n  ⭐ TỔNG KẾT [{mode.upper()}] K={k} -> Acc: {mean_acc:.2f} ± {std_acc:.2f}% | F1: {mean_f1:.2f} ± {std_f1:.2f}%")
+    print(f"⭐ Kết quả [{mode.upper()}] K={k:2d} -> Acc: {mean_acc:.2f} ± {std_acc:.2f}% | Macro F1: {mean_f1:.2f} ± {std_f1:.2f}%")
 
     return mean_acc, std_acc, mean_f1, std_f1
 

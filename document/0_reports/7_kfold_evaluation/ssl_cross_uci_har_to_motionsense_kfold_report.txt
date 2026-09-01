@@ -1,0 +1,21 @@
+📊 Tổng kết kết quả (Macro F1)
+
+GIAI ĐOẠN 1: LINEAR PROBING (encoder đóng băng)
+
+K-fold	Accuracy	Macro F1
+K=3	84.77 ± 0.50%	84.71 ± 0.63%
+K=5	84.40 ± 0.52%	84.29 ± 0.75%
+K=7	84.67 ± 0.52%	84.58 ± 0.61%
+K=10	84.80 ± 0.66%	84.70 ± 0.81%
+
+→ Ổn định quanh ~84.5-84.8%, không thay đổi nhiều theo K.
+
+GIAI ĐOẠN 2: FULL FINE-TUNING (fine-tune toàn bộ encoder)
+
+K-fold	Accuracy	Macro F1
+K=3	96.97 ± 0.47%	97.15 ± 0.39%
+K=5	97.31 ± 0.49%	97.54 ± 0.39%
+K=7	97.42 ± 0.36%	97.65 ± 0.23%
+K=10	97.63 ± 0.43%	97.87 ± 0.34%
+
+→ Tăng vọt lên ~97-98%, và có xu hướng tăng nhẹ + độ lệch chuẩn giảm khi K tăng (K=10 ổn định nhất).
