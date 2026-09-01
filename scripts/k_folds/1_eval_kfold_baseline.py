@@ -91,6 +91,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=30, help="Số epoch cho mỗi fold")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
+    parser.add_argument("--dry_run", action="store_true", help="Chạy thử nghiệm kiểm tra luồng, KHÔNG lưu file report")
     args = parser.parse_args()
 
     report_dir = PROJECT_ROOT / "document" / "0_reports" / "7_kfold_evaluation"
@@ -113,17 +114,25 @@ def main():
         row = f"K = {k:2d} | Accuracy: {m_acc:.2f} ± {s_acc:.2f}% | Macro F1: {m_f1:.2f} ± {s_f1:.2f}%"
         summary_rows.append(row)
 
-    # Ghi toàn bộ kết quả tổng hợp vào báo cáo
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(f"BÁO CÁO K-FOLD SUPERVISED BASELINE - TẬP DỮ LIỆU: {args.dataset.upper()}\n")
-        f.write(f"Cấu hình: Epochs={args.epochs}, LR={args.lr}, Batch Size={args.batch_size}\n")
-        f.write("=" * 75 + "\n")
-        f.write("\n".join(summary_rows) + "\n")
-        f.write("=" * 75 + "\n")
+    if not args.dry_run:
+        report_dir = PROJECT_ROOT / "document" / "0_reports" / "7_kfold_evaluation"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        report_path = report_dir / f"baseline_{args.dataset}_kfold_report.txt"
 
-    print("\n" + "=" * 75)
-    print(f"✅ HOÀN TẤT TOÀN BỘ K-FOLDS! Báo cáo đã lưu tại: {report_path}")
-    print("=" * 75)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(f"BÁO CÁO K-FOLD SUPERVISED BASELINE - TẬP DỮ LIỆU: {args.dataset.upper()}\n")
+            f.write(f"Cấu hình: Epochs={args.epochs}, LR={args.lr}, Batch Size={args.batch_size}\n")
+            f.write("=" * 75 + "\n")
+            f.write("\n".join(summary_rows) + "\n")
+            f.write("=" * 75 + "\n")
+
+        print("\n" + "=" * 75)
+        print(f"✅ HOÀN TẤT TOÀN BỘ K-FOLDS! Báo cáo đã lưu tại: {report_path}")
+        print("=" * 75)
+    else:
+        print("\n" + "=" * 75)
+        print("✅ KIỂM TRA THỬ HOÀN TẤT THÀNH CÔNG! (Không có file log/report nào được tạo)")
+        print("=" * 75)
 
 
 if __name__ == "__main__":
