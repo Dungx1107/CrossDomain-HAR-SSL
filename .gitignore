@@ -111,3 +111,5 @@ outputs/
 .cache/
 .uv/
 .triton/
+
+document/references/gvhd.txt

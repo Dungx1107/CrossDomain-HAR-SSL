@@ -28,6 +28,5 @@ Dựa trên kết quả đó phân tích, so sánh, giải thích tại sao mô 
 Dựa vào bài toán em chọn là nâng cao kết quả độ chính xác, thì cô sẽ đánh giá dựa vào kết quả độ đo.
 Tuy nhiên còn một thang đo với các mô hình học sâu là thời gian học/suy luận của mô hình, độ phức tạp của mô hình. Em có thể tìm hiểu thêm.
 
-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
 
 
