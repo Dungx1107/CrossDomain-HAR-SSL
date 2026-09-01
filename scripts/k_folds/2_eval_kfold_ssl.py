@@ -64,9 +64,17 @@ def train_fold_engine(model, train_loader, optimizer, criterion, epochs, desc_pr
 
     epoch_bar = tqdm(range(1, epochs + 1), desc=desc_prefix, leave=False)
     for epoch in epoch_bar:
-        loss = trainer.train_one_epoch(train_loader)
-        if loss is not None:
-            epoch_bar.set_postfix({"loss": f"{loss:.4f}"})
+        result = trainer.train_one_epoch(train_loader)
+
+        # Xử lý an toàn: nếu trả về tuple (loss, acc) hoặc float
+        if isinstance(result, tuple):
+            loss_val = result[0]
+            postfix_dict = {"loss": f"{loss_val:.4f}"}
+            if len(result) > 1 and isinstance(result[1], (int, float)):
+                postfix_dict["acc"] = f"{result[1]:.2f}%"
+            epoch_bar.set_postfix(postfix_dict)
+        elif isinstance(result, (int, float)):
+            epoch_bar.set_postfix({"loss": f"{result:.4f}"})
 
 
 def run_single_mode(target_dataset, checkpoint_path, mode, k, epochs, lr, batch_size):
