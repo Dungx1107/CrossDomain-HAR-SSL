@@ -6,12 +6,16 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import StratifiedKFold
 
-# Tự động lấy đường dẫn root của project
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-
-def get_kfold_loaders(dataset_name="motionsense", k=5, batch_size=64, seed=42, num_workers=0):
+def get_kfold_loaders(
+        dataset_name="motionsense",
+        k=5,
+        batch_size=64,
+        seed=42,
+        num_workers=0
+    ):
     """
     Nạp dữ liệu đã xử lý từ data/processed/{dataset_name}/dataset_all.pt
     và phân chia thành K Folds có phân tầng (Stratified K-Fold).
@@ -43,7 +47,6 @@ def get_kfold_loaders(dataset_name="motionsense", k=5, batch_size=64, seed=42, n
 
     fold_loaders = []
     for fold, (train_idx, test_idx) in enumerate(skf.split(X, y.numpy())):
-        # Sử dụng trực tiếp TensorDataset của PyTorch
         train_ds = TensorDataset(X[train_idx], y[train_idx])
         test_ds = TensorDataset(X[test_idx], y[test_idx])
 
