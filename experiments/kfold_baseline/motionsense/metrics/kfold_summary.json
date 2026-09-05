@@ -1,0 +1,51 @@
+{
+    "dataset": "motionsense",
+    "n_splits": 5,
+    "epochs_per_fold": 40,
+    "batch_size": 64,
+    "metrics_summary": {
+        "accuracy_mean": 93.70915267038312,
+        "accuracy_std": 1.4763602319760585,
+        "macro_f1_mean": 92.64551035652113,
+        "macro_f1_std": 1.368626466356837,
+        "weighted_f1_mean": 93.74807964042415,
+        "weighted_f1_std": 1.464005360360622
+    },
+    "fold_details": [
+        {
+            "fold": 1,
+            "best_val_macro_f1": 92.45803337267684,
+            "accuracy": 93.769322235434,
+            "macro_f1": 92.45803337267684,
+            "weighted_f1": 93.91899315779466
+        },
+        {
+            "fold": 2,
+            "best_val_macro_f1": 90.79406062389126,
+            "accuracy": 91.5864166244298,
+            "macro_f1": 90.79406062389126,
+            "weighted_f1": 91.62776829702466
+        },
+        {
+            "fold": 3,
+            "best_val_macro_f1": 91.81371139295672,
+            "accuracy": 92.5823485038974,
+            "macro_f1": 91.81371139295672,
+            "weighted_f1": 92.59247671811906
+        },
+        {
+            "fold": 4,
+            "best_val_macro_f1": 94.81920097244085,
+            "accuracy": 95.43197616683217,
+            "macro_f1": 94.81920097244085,
+            "weighted_f1": 95.4341725196897
+        },
+        {
+            "fold": 5,
+            "best_val_macro_f1": 93.34254542063995,
+            "accuracy": 95.17569982132221,
+            "macro_f1": 93.34254542063995,
+            "weighted_f1": 95.16698750949269
+        }
+    ]
+}

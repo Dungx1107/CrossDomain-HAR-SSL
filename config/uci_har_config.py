@@ -1,42 +1,48 @@
 """
 ===============================================================================
-CẤU HÌNH THÍ NGHIỆM: UCI-HAR SUPERVISED BASELINE
-Vị trí file: config/uci_har_config.py
 Mục tiêu:
-    - Quản lý siêu tham số huấn luyện Supervised từ đầu (Scratch) trên UCI-HAR.
-    - Cấu hình 6 kênh tín hiệu chuẩn hóa và 5 lớp hoạt động chung.
+    - Quản lý cấu hình, đường dẫn và siêu tham số cho bộ dữ liệu UCI-HAR.
+    - Hỗ trợ tự động chuyển đổi môi trường giữa Máy cá nhân (Local) và Kaggle.
+    - Cung cấp checkpoint chuẩn cho các tác vụ Pretrain SSL và Cross-Domain.
 ===============================================================================
 """
 
 import os
+from pathlib import Path
 
+# -----------------------------------------------------------------------------
+# 1. XÁC ĐỊNH GỐC DỰ ÁN & MÔI TRƯỜNG CHẠY
+# -----------------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 
 class UCIHARConfig:
     # -------------------------------------------------------------------------
-    # 1. ĐƯỜNG DẪN DỮ LIỆU & CHECKPOINT
+    # 2. ĐƯỜNG DẪN DỮ LIỆU & CHECKPOINT
     # -------------------------------------------------------------------------
-    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if IS_KAGGLE:
+        BASE_INPUT = Path("/kaggle/input")
+        DATA_DIR = BASE_INPUT / "har-processed-data" / "uci_har"
+        CHECKPOINT_SSL_PRETRAINED_PATH = BASE_INPUT / "har-ssl-checkpoints-vault" / "tstcc_encoder_pretrained_uci_har.pt"
+        REPORT_DIR = Path("/kaggle/working/reports/uci_har")
+    else:
+        DATA_DIR = PROJECT_ROOT / "data" / "processed" / "uci_har"
+        CHECKPOINT_SSL_PRETRAINED_PATH = PROJECT_ROOT / "checkpoints" / "tstcc_encoder_pretrained_uci_har.pt"
+        REPORT_DIR = PROJECT_ROOT / "document" / "0_reports" / "1_baseline_uci_har"
 
-    # Dữ liệu đã qua tiền xử lý (5 lớp chung, 6 kênh)
-    PROCESSED_TRAIN_PATH = os.path.join(PROJECT_ROOT, "data", "processed", "uci_har", "train.pt")
-    PROCESSED_TEST_PATH = os.path.join(PROJECT_ROOT, "data", "processed", "uci_har", "test.pt")
-
-    # Nơi lưu checkpoint tốt nhất
-    CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints")
-    BEST_MODEL_PATH = os.path.join(CHECKPOINT_DIR, "baseline_cnn1d_uci_har_best.pt")
-
-    # Nơi lưu báo cáo kết quả
-    REPORT_DIR = os.path.join(PROJECT_ROOT, "document", "0_reports", "1_baseline_uci_har")
-    LOG_FILE_PATH = os.path.join(REPORT_DIR, "baseline_uci_har_eval_logs.txt")
+    # Dữ liệu đã qua tiền xử lý
+    DATA_ALL_PATH = DATA_DIR / "dataset_all.pt"
+    PROCESSED_TRAIN_PATH = DATA_DIR / "train.pt"
+    PROCESSED_TEST_PATH = DATA_DIR / "test.pt"
 
     # -------------------------------------------------------------------------
-    # 2. ĐẶC TẢ TÍN HIỆU & KHÔNG GIAN NHÃN
+    # 3. ĐẶC TẢ TÍN HIỆU & KHÔNG GIAN NHÃN CHUNG (COMMON ACTION SPACE)
     # -------------------------------------------------------------------------
-    IN_CHANNELS = 6  # 6 trục: [body_acc_x, y, z, body_gyro_x, y, z]
-    SEQUENCE_LENGTH = 128  # Chiều dài mỗi cửa sổ thời gian
-    NUM_CLASSES = 5  # 5 lớp hoạt động: Walking, Upstairs, Downstairs, Sitting, Standing
-    FEATURE_DIM = 128  # Kích thước Feature Vector đầu ra từ Encoder Backbone
+    IN_CHANNELS = 6         # [body_acc_x, y, z, body_gyro_x, y, z]
+    SEQUENCE_LENGTH = 128   # 128 timesteps (~2.56s)
+    FEATURE_DIM = 128       # Chiều vector đặc trưng sau Encoder Backbone
 
+    # Lưu ý: 5 lớp hành vi giao nhau giữa UCI-HAR và MotionSense
     CLASS_NAMES = [
         'Walking',
         'Upstairs',
@@ -44,9 +50,19 @@ class UCIHARConfig:
         'Sitting',
         'Standing'
     ]
+    NUM_CLASSES = len(CLASS_NAMES)  # 5 lớp
+
+    # Ánh xạ nhãn nội bộ để đảm bảo thứ tự index khớp nhau
+    LABEL_MAP = {
+        'Walking': 0,
+        'Upstairs': 1,
+        'Downstairs': 2,
+        'Sitting': 3,
+        'Standing': 4
+    }
 
     # -------------------------------------------------------------------------
-    # 3. SIÊU THAM SỐ HUẤN LUYỆN (HYPERPARAMETERS)
+    # 4. SIÊU THAM SỐ HUẤN LUYỆN
     # -------------------------------------------------------------------------
     SEED = 42
     BATCH_SIZE = 64
@@ -55,10 +71,8 @@ class UCIHARConfig:
     WEIGHT_DECAY = 1e-4
     DROPOUT_RATE = 0.3
 
-    # Learning Rate Scheduler (Giảm LR khi Loss chững lại)
+    # Scheduler & Early Stopping
     SCHEDULER_FACTOR = 0.5
     SCHEDULER_PATIENCE = 5
     SCHEDULER_MIN_LR = 1e-5
-
-    # Early Stopping để tránh Overfitting
     EARLY_STOPPING_PATIENCE = 12

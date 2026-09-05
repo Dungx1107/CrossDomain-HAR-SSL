@@ -1,0 +1,14 @@
+{
+    "input_shape": [
+        1,
+        6,
+        128
+    ],
+    "total_params": 185349,
+    "trainable_params": 185349,
+    "model_size_mb": 0.7071,
+    "macs": "3.81M",
+    "flops": "7.62M",
+    "latency_ms_per_sample": 0.451,
+    "device": "cuda"
+}

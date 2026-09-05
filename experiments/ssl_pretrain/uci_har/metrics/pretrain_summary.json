@@ -1,0 +1,10 @@
+{
+    "dataset": "uci_har",
+    "epochs": 40,
+    "results": {
+        "best_loss": 1.295252681695498,
+        "best_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/ssl_pretrain/uci_har/checkpoints/best_encoder.pt",
+        "history_csv": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/ssl_pretrain/uci_har/metrics/loss_history.csv",
+        "total_samples": 8355
+    }
+}

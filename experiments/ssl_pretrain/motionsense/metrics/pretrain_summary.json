@@ -1,0 +1,10 @@
+{
+    "dataset": "motionsense",
+    "epochs": 40,
+    "results": {
+        "best_loss": 1.1359330270635455,
+        "best_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/ssl_pretrain/motionsense/checkpoints/best_encoder.pt",
+        "history_csv": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/ssl_pretrain/motionsense/metrics/loss_history.csv",
+        "total_samples": 19514
+    }
+}

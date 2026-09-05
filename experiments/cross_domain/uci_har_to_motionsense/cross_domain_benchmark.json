@@ -1,0 +1,86 @@
+{
+    "linear_probing": {
+        "0.01": {
+            "samples": 80,
+            "macro_f1_mean": 61.46,
+            "macro_f1_std": 0.71,
+            "accuracy_mean": 70.81,
+            "accuracy_std": 2.17,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/linear_probing/checkpoints/best_model_frac_0.01.pt"
+        },
+        "0.05": {
+            "samples": 404,
+            "macro_f1_mean": 68.95,
+            "macro_f1_std": 2.22,
+            "accuracy_mean": 75.68,
+            "accuracy_std": 2.78,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/linear_probing/checkpoints/best_model_frac_0.05.pt"
+        },
+        "0.1": {
+            "samples": 808,
+            "macro_f1_mean": 75.5,
+            "macro_f1_std": 1.19,
+            "accuracy_mean": 81.56,
+            "accuracy_std": 1.44,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/linear_probing/checkpoints/best_model_frac_0.10.pt"
+        },
+        "0.5": {
+            "samples": 4040,
+            "macro_f1_mean": 80.73,
+            "macro_f1_std": 0.38,
+            "accuracy_mean": 85.63,
+            "accuracy_std": 0.28,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/linear_probing/checkpoints/best_model_frac_0.50.pt"
+        },
+        "1.0": {
+            "samples": 8081,
+            "macro_f1_mean": 81.38,
+            "macro_f1_std": 0.41,
+            "accuracy_mean": 85.99,
+            "accuracy_std": 0.28,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/linear_probing/checkpoints/best_model_frac_1.00.pt"
+        }
+    },
+    "full_finetuning": {
+        "0.01": {
+            "samples": 80,
+            "macro_f1_mean": 71.26,
+            "macro_f1_std": 1.16,
+            "accuracy_mean": 77.57,
+            "accuracy_std": 1.9,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/full_finetuning/checkpoints/best_model_frac_0.01.pt"
+        },
+        "0.05": {
+            "samples": 404,
+            "macro_f1_mean": 80.56,
+            "macro_f1_std": 1.53,
+            "accuracy_mean": 83.75,
+            "accuracy_std": 1.54,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/full_finetuning/checkpoints/best_model_frac_0.05.pt"
+        },
+        "0.1": {
+            "samples": 808,
+            "macro_f1_mean": 82.15,
+            "macro_f1_std": 1.36,
+            "accuracy_mean": 85.11,
+            "accuracy_std": 1.47,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/full_finetuning/checkpoints/best_model_frac_0.10.pt"
+        },
+        "0.5": {
+            "samples": 4040,
+            "macro_f1_mean": 82.01,
+            "macro_f1_std": 0.63,
+            "accuracy_mean": 84.99,
+            "accuracy_std": 0.63,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/full_finetuning/checkpoints/best_model_frac_0.50.pt"
+        },
+        "1.0": {
+            "samples": 8081,
+            "macro_f1_mean": 81.49,
+            "macro_f1_std": 1.03,
+            "accuracy_mean": 84.42,
+            "accuracy_std": 1.02,
+            "best_model_ckpt": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/cross_domain/uci_har_to_motionsense/full_finetuning/checkpoints/best_model_frac_1.00.pt"
+        }
+    }
+}

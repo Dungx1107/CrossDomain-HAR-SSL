@@ -1,0 +1,51 @@
+{
+    "dataset": "uci_har",
+    "n_splits": 5,
+    "epochs_per_fold": 40,
+    "batch_size": 64,
+    "metrics_summary": {
+        "accuracy_mean": 97.10647234055205,
+        "accuracy_std": 0.9398587983830069,
+        "macro_f1_mean": 97.24271023455663,
+        "macro_f1_std": 0.9421648653269773,
+        "weighted_f1_mean": 97.11465709907604,
+        "weighted_f1_std": 0.9355290575894456
+    },
+    "fold_details": [
+        {
+            "fold": 1,
+            "best_val_macro_f1": 97.69430668159265,
+            "accuracy": 97.54874651810584,
+            "macro_f1": 97.69430668159265,
+            "weighted_f1": 97.547913921142
+        },
+        {
+            "fold": 2,
+            "best_val_macro_f1": 96.32292770183122,
+            "accuracy": 96.19794809897405,
+            "macro_f1": 96.32292770183122,
+            "weighted_f1": 96.19061006147798
+        },
+        {
+            "fold": 3,
+            "best_val_macro_f1": 96.7724653897504,
+            "accuracy": 96.46840148698885,
+            "macro_f1": 96.7724653897504,
+            "weighted_f1": 96.49545517101095
+        },
+        {
+            "fold": 4,
+            "best_val_macro_f1": 96.5442405134039,
+            "accuracy": 96.5680473372781,
+            "macro_f1": 96.5442405134039,
+            "weighted_f1": 96.58913330079653
+        },
+        {
+            "fold": 5,
+            "best_val_macro_f1": 98.87961088620494,
+            "accuracy": 98.74921826141339,
+            "macro_f1": 98.87961088620494,
+            "weighted_f1": 98.75017304095276
+        }
+    ]
+}

@@ -1,44 +1,42 @@
-# FILE CẤU HÌNH THAM SỐ CHO BỘ DỮ LIỆU MOTIONSENSE
-# Bài giảng lý thuyết cấu hình:
-#
-#     1. Ánh xạ nhãn (Label Mapping): Tên thư mục bắt đầu bằng dws, ups, wlk, jog, sit, std.
-#     Ta phải chuyển chúng về các số từ 0 đến 5 để máy tính làm toán loss function.
-#
-#     2. Chiến lược chia dữ liệu (Subject Split): Dùng 18 người đầu (sub_1 đến sub_18) làm tập Train,
-#     và 6 người còn lại (sub_19 đến sub_24) làm tập Test để đánh giá độc lập (Subject-Independent).
-#
-#     3. Định dạng dữ liệu đầu vào: Cảm biến MotionSense có 12 kênh dữ liệu. Ở bài Baseline này,
-#     ta có thể linh hoạt chọn 6 kênh cơ bản (userAcceleration + rotationRate) hoặc full 12 kênh.
-
 import os
+from pathlib import Path
 
 # -----------------------------------------------------------------------------
-# TỰ ĐỘNG TÍNH ĐƯỜNG DẪN THƯ MỤC GỐC DỰ ÁN (PROJECT ROOT)
-# File này nằm tại: CrossDomain-HAR-SSL/config/motionsense_config.py
-# -> dirname 1 lần = thư mục 'config'
-# -> dirname 2 lần = thư mục gốc 'CrossDomain-HAR-SSL'
+# 1. TỰ ĐỘNG XÁC ĐỊNH GỐC DỰ ÁN & MÔI TRƯỜNG
 # -----------------------------------------------------------------------------
-CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(CURRENT_FILE_DIR)
+# File nằm tại: CrossDomain-HAR-SSL/config/motionsense_config.py
+# parent 1 lần = 'config', parent 2 lần = 'CrossDomain-HAR-SSL'
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Tự động nhận diện môi trường Kaggle hay Local
+IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 
 
 class MotionSenseConfig:
     # -------------------------------------------------------------------------
-    # 1. ĐƯỜNG DẪN DỮ LIỆU (DATA PATHS)
+    # 2. ĐƯỜNG DẪN DỮ LIỆU (DATA PATHS)
     # -------------------------------------------------------------------------
-    # Đường dẫn tới thư mục chứa dữ liệu thô MotionSense
-    RAW_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "raw", "motion_sense")
+    if IS_KAGGLE:
+        # Đường dẫn khi chạy trên Kaggle
+        BASE_INPUT = Path("/kaggle/input")
+        RAW_DATA_DIR = BASE_INPUT / "motionsense-raw-data"
+        PROCESSED_DIR = BASE_INPUT / "har-processed-data" / "motionsense"
+        CHECKPOINT_SSL_PRETRAINED_PATH = BASE_INPUT / "har-ssl-checkpoints-vault" / "tstcc_encoder_pretrained_motionsense.pt"
+    else:
+        # Đường dẫn khi chạy trên máy Local
+        RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "motion_sense"
+        PROCESSED_DIR = PROJECT_ROOT / "data" / "processed" / "motionsense"
+        CHECKPOINT_SSL_PRETRAINED_PATH = PROJECT_ROOT / "checkpoints" / "tstcc_encoder_pretrained_motionsense.pt"
 
-    PROCESSED_DIR = os.path.join(PROJECT_ROOT, "data", "processed", "motionsense")
-    PROCESSED_TRAIN_PATH = os.path.join(PROCESSED_DIR, "train.pt")
-    PROCESSED_VAL_PATH = os.path.join(PROCESSED_DIR, "val.pt")
-    PROCESSED_TEST_PATH = os.path.join(PROCESSED_DIR, "test.pt")
+    # Đường dẫn file dữ liệu đã xử lý
+    DATA_ALL_PATH = PROCESSED_DIR / "dataset_all.pt"  # Dùng cho K-Fold / Clustering
+    PROCESSED_TRAIN_PATH = PROCESSED_DIR / "train.pt"  # Dùng cho Subject Split
+    PROCESSED_VAL_PATH = PROCESSED_DIR / "val.pt"
+    PROCESSED_TEST_PATH = PROCESSED_DIR / "test.pt"
 
     # -------------------------------------------------------------------------
-    # 2. ÁNH XẠ NHÃN HOẠT ĐỘNG (LABEL MAPPING)
+    # 3. ÁNH XẠ NHÃN HOẠT ĐỘNG (LABEL MAPPING)
     # -------------------------------------------------------------------------
-    # Tác dụng: Chuyển mã ký tự thư mục gốc (dws, ups...) thành tên hoạt động
-    # và chỉ số lớp (Class Index) dạng số nguyên từ 0 đến 5 để tính Loss trong PyTorch.
     LABEL_MAP = {
         'dws': 0,  # Downstairs (Đi xuống cầu thang)
         'ups': 1,  # Upstairs (Đi lên cầu thang)
@@ -48,44 +46,40 @@ class MotionSenseConfig:
         'std': 5  # Standing (Đứng)
     }
 
-    # Danh sách tên nhãn để hiển thị khi in kết quả / Confusion Matrix
     CLASS_NAMES = ['Downstairs', 'Upstairs', 'Walking', 'Jogging', 'Sitting', 'Standing']
-    NUM_CLASSES = len(CLASS_NAMES)  # Tổng số lớp = 6
+    NUM_CLASSES = len(CLASS_NAMES)  # 6 classes
 
     # -------------------------------------------------------------------------
-    # 3. CHIA DỮ LIỆU THEO NGƯỜI DÙNG (CHUẨN 3 TẬP ĐỘC LẬP)
+    # 4. CHIA DỮ LIỆU THEO SUBJECT (CHỐNG RÒ RỈ DỮ LIỆU - DATA LEAKAGE)
     # -------------------------------------------------------------------------
+    # Tổng cộng có 24 subjects (sub_1 đến sub_24)
     TRAIN_SUBJECTS = list(range(1, 15))  # Sub 1 -> 14 (14 người ~ 58.3%)
     VAL_SUBJECTS = list(range(15, 19))  # Sub 15 -> 18 (4 người ~ 16.7%)
     TEST_SUBJECTS = list(range(19, 25))  # Sub 19 -> 24 (6 người ~ 25.0%)
 
     # -------------------------------------------------------------------------
-    # 4. THAM SỐ CẮT CỬA SỔ TRƯỢT (SLIDING WINDOW PARAMETERS)
+    # 5. THAM SỐ CỬA SỔ TRƯỢT (SLIDING WINDOW)
     # -------------------------------------------------------------------------
-    # SAMPLING_RATE = 50Hz (MotionSense thu thập 50 mẫu/giây)
-    # WINDOW_SIZE = 128 mẫu -> Tương đương 128 / 50 = 2.56 giây dữ liệu cho 1 cửa sổ
+    # Sampling rate: 50Hz (50 samples/s)
+    # 128 samples tương đương 2.56 giây
     WINDOW_SIZE = 128
 
-    # OVERLAP = 0.5 (Độ chồng lấp 50%) -> Cửa sổ sau sẽ trượt lên cửa sổ trước 64 mẫu (1.28 giây)
-    # Tác dụng: Tăng gấp đôi số lượng mẫu dữ liệu thu được, giữ tính liên tục của hành động.
-    STRIDE = int(WINDOW_SIZE * (1 - 0.5))  # STRIDE = 64 mẫu
+    # Overlap 50% -> Bước trượt là 64 samples
+    STRIDE = 64
 
     # -------------------------------------------------------------------------
-    # 5. LỰA CHỌN KÊNH CẢM BIẾN DỮ LIỆU (FEATURE COLUMNS)
+    # 6. KÊNH CẢM BIẾN (FEATURE COLUMNS)
     # -------------------------------------------------------------------------
-    # Chọn 6 kênh cảm biến cơ bản nhất cho bài toán HAR:
-    # 3 trục Gia tốc người dùng (userAcceleration) + 3 trục Vận tốc góc (rotationRate)
-
+    # 6 kênh cơ bản tương ứng với chuẩn của UCI-HAR (3 gia tốc + 3 vận tốc góc)
     FEATURE_COLS = [
         'userAcceleration.x', 'userAcceleration.y', 'userAcceleration.z',
         'rotationRate.x', 'rotationRate.y', 'rotationRate.z'
     ]
-
-    IN_CHANNELS = len(FEATURE_COLS)  # Số kênh đầu vào = 6
+    IN_CHANNELS = len(FEATURE_COLS)  # 6 kênh
 
     # -------------------------------------------------------------------------
-    # 6. THAM SỐ HUẤN LUYỆN (TRAINING HYPERPARAMETERS)
+    # 7. SIÊU THAM SỐ HUẤN LUYỆN (HYPERPARAMETERS)
     # -------------------------------------------------------------------------
-    BATCH_SIZE = 64  # Số lượng cửa sổ dữ liệu xử lý trong 1 lần nạp GPU
-    LEARNING_RATE = 1e-3  # Tốc độ học (0.001) cho thuật toán Optimizer Adam
-    EPOCHS = 30  # Số lượt duyệt qua toàn bộ tập dữ liệu Train
+    BATCH_SIZE = 64
+    LEARNING_RATE = 1e-3
+    EPOCHS = 30

@@ -1,0 +1,7 @@
+{
+    "dataset": "motionsense",
+    "checkpoint_evaluated": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/experiments/baseline/motionsense/checkpoint/best_baseline_model.pt",
+    "test_accuracy": 86.09137055837563,
+    "test_macro_f1": 84.26945823117805,
+    "test_weighted_f1": 86.29761024825966
+}

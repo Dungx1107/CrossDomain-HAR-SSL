@@ -1,0 +1,8 @@
+{
+    "dataset": "uci_har",
+    "encoder_type": "1dcnn",
+    "best_val_macro_f1": 98.6750051507301,
+    "test_accuracy": 94.43983402489626,
+    "test_macro_f1": 94.44890321427903,
+    "test_weighted_f1": 94.46205652295757
+}
