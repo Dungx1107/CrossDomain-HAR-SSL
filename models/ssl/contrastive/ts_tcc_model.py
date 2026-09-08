@@ -3,17 +3,10 @@
 VAI TRÒ TRONG HỆ THỐNG:
     - Đóng gói toàn bộ kiến trúc mạng Siamese (Siamese Network Architecture)
       cho giai đoạn Huấn luyện Tự Giám Sát Đối Chiếu (TS-TCC Pre-training).
-    - Kết hợp 2 thành phần độc lập theo nguyên lý Lego:
-        1. Backbone (StandardSensorEncoder1D): Trích xuất đặc trưng chuỗi thời gian.
-        2. Head (ProjectionHead): Chiếu vector sang không gian tính Contrastive Loss.
-
-NGUYÊN LÝ HOẠT ĐỘNG:
-    - Nhận vào 2 góc nhìn tăng cường (Augmented Views) từ cùng 1 tín hiệu gốc:
-        + x_weak   : Góc nhìn tăng cường yếu (Jitter + Scaling nhẹ).
-        + x_strong : Góc nhìn tăng cường mạnh (Permutation + Time-warping).
-    - Cả 2 góc nhìn đều đi qua CÙNG MỘT ENCODER (chia sẻ trọng số - Weight Sharing).
-    - Đầu ra trả về 2 vector chiếu (h_weak, h_strong) để đưa vào hàm tính mất mát
-      đối chiếu thời gian - ngữ cảnh (Temporal-Context Contrastive Loss).
+    - Tự động tương thích với mọi loại Backbone (Standard 1D-CNN, ViT-1D, CNN-Transformer):
+        + Nếu Backbone xuất tensor 2D (B, 128): Đưa thẳng vào ProjectionHead.
+        + Nếu Backbone xuất tensor 3D (B, 128, L): Tự động nén qua Global Average Pooling
+          dọc theo trục thời gian (dim=-1) để đưa vào ProjectionHead.
 ===============================================================================
 """
 
@@ -36,62 +29,78 @@ class TSTCCModel(nn.Module):
         feature_dim: int = 128,
         projection_dim: int = 64
     ):
-        """
-        Khởi tạo mô hình TS-TCC. Hỗ trợ truyền Module tùy chỉnh hoặc tự động khởi tạo.
-        Tham số:
-            encoder (nn.Module, optional): Backbone trích xuất đặc trưng tùy chọn.
-                                          Nếu None, sẽ tự tạo StandardSensorEncoder1D.
-            projection_head (nn.Module, optional): Đầu chiếu MLP tùy chọn.
-                                                  Nếu None, sẽ tự tạo ProjectionHead.
-            in_channels (int): Số kênh cảm biến đầu vào (mặc định: 6 kênh Acc + Gyro).
-            feature_dim (int): Kích thước vector biểu diễn trung gian từ Encoder (mặc định: 128).
-            projection_dim (int): Kích thước vector sau tầng chiếu để tính Loss (mặc định: 64).
-        """
         super().__init__()
 
-        # ---------------------------------------------------------------------
-        # 1. KHỞI TẠO KHUNG XƯƠNG (ENCODER BACKBONE)
-        # Nhận vào: Sóng thô (B, 6, 128) -> Xuất ra: Vector đặc trưng (B, 128)
-        # ---------------------------------------------------------------------
+        # 1. Khởi tạo Khung xương (Encoder Backbone)
         self.encoder = encoder if encoder is not None else StandardSensorEncoder1D(
             in_channels=in_channels,
             feature_dim=feature_dim
         )
 
-        # ---------------------------------------------------------------------
-        # 2. KHỞI TẠO ĐẦU CHIẾU TỰ GIÁM SÁT (PROJECTION HEAD)
-        # Nhận vào: Vector (B, 128) -> Xuất ra: Vector chiếu đơn vị (B, 64)
-        # ---------------------------------------------------------------------
+        # 2. Khởi tạo Đầu chiếu tự giám sát (Projection Head)
         self.projection_head = projection_head if projection_head is not None else ProjectionHead(
             feature_dim=feature_dim,
             projection_dim=projection_dim
         )
 
+    def _pool_if_needed(self, z: torch.Tensor) -> torch.Tensor:
+        """
+        Đảm bảo tensor đầu ra từ encoder có dạng 2D (B, feature_dim).
+        Nếu encoder trả về dạng 3D (B, feature_dim, L), áp dụng Global Average Pooling theo chiều thời gian.
+        """
+        if z.dim() == 3:
+            # (B, 128, L) -> (B, 128)
+            z = z.mean(dim=-1)
+        elif z.dim() != 2:
+            raise ValueError(f"❌ Tensor đầu ra từ encoder phải là 2D hoặc 3D, nhận được shape: {tuple(z.shape)}")
+        return z
+
     def forward(self, x_weak: torch.Tensor, x_strong: torch.Tensor):
         """
         Lan truyền tiến song song (Forward Pass) cho 2 nhánh Siamese Network.
         Tham số:
-            x_weak   (torch.Tensor): Batch tín hiệu góc nhìn yếu, shape (B, in_channels, seq_len).
-            x_strong (torch.Tensor): Batch tín hiệu góc nhìn mạnh, shape (B, in_channels, seq_len).
+            x_weak   (torch.Tensor): Batch tín hiệu góc nhìn yếu (B, in_channels, seq_len).
+            x_strong (torch.Tensor): Batch tín hiệu góc nhìn mạnh (B, in_channels, seq_len).
         Trả về:
-            h_weak   (torch.Tensor): Vector biểu diễn đã chuẩn hóa L2 của nhánh Yếu, shape (B, projection_dim).
-            h_strong (torch.Tensor): Vector biểu diễn đã chuẩn hóa L2 của nhánh Mạnh, shape (B, projection_dim).
+            h_weak   (torch.Tensor): Vector biểu diễn chuẩn hóa L2 của nhánh Yếu (B, projection_dim).
+            h_strong (torch.Tensor): Vector biểu diễn chuẩn hóa L2 của nhánh Mạnh (B, projection_dim).
         """
         # =====================================================================
-        # NHÁNH 1: XỬ LÝ GÓC NHÌN YẾU (WEAK VIEW BRANCH)
+        # NHÁNH 1: GÓC NHÌN YẾU (WEAK VIEW BRANCH)
         # =====================================================================
-        # 1.1. Rút trích đặc trưng qua 1D-CNN Backbone -> shape: (B, 128)
         z_weak = self.encoder(x_weak)
-        # 1.2. Chiếu sang không gian đối chiếu và chuẩn hóa L2 -> shape: (B, 64)
-        h_weak = self.projection_head(z_weak, normalize=True)
+        z_weak_pooled = self._pool_if_needed(z_weak)
+        h_weak = self.projection_head(z_weak_pooled, normalize=True)
 
         # =====================================================================
-        # NHÁNH 2: XỬ LÝ GÓC NHÌN MẠNH (STRONG VIEW BRANCH)
-        # (Dùng chung trọng số với Nhánh 1)
+        # NHÁNH 2: GÓC NHÌN MẠNH (STRONG VIEW BRANCH)
         # =====================================================================
-        # 2.1. Rút trích đặc trưng qua 1D-CNN Backbone -> shape: (B, 128)
         z_strong = self.encoder(x_strong)
-        # 2.2. Chiếu sang không gian đối chiếu và chuẩn hóa L2 -> shape: (B, 64)
-        h_strong = self.projection_head(z_strong, normalize=True)
+        z_strong_pooled = self._pool_if_needed(z_strong)
+        h_strong = self.projection_head(z_strong_pooled, normalize=True)
 
         return h_weak, h_strong
+
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("🧪 KIỂM TRA TSTCCModel VỚI CẢ 3 BACKBONE")
+    print("=" * 70)
+
+    from models.encoders.builder import build_encoder
+
+    x1 = torch.randn(4, 6, 128)
+    x2 = torch.randn(4, 6, 128)
+
+    for backbone in ["standard", "cnn_transformer", "vit_1d"]:
+        try:
+            enc = build_encoder(backbone_type=backbone, in_channels=6)
+            model = TSTCCModel(encoder=enc, in_channels=6, feature_dim=128, projection_dim=64)
+            h_w, h_s = model(x1, x2)
+            print(f"✅ Backbone [{backbone.upper()}]:")
+            print(f"   - Output h_weak shape   : {tuple(h_w.shape)}")
+            print(f"   - Output h_strong shape : {tuple(h_s.shape)}")
+        except Exception as e:
+            print(f"❌ Backbone [{backbone.upper()}] LỖI: {e}")
+
+    print("=" * 70)

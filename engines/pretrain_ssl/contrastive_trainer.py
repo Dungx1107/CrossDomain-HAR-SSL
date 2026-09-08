@@ -15,17 +15,17 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 from datasets.contrastive_dataset import ContrastiveDatasetWrapper
-from models.encoders.cnn1d import StandardSensorEncoder1D
 from models.ssl.contrastive.ts_tcc_model import TSTCCModel
 from losses.nt_xent import NTXentLoss
 from utils.hardware import print_gpu_status
 from utils.complexity import measure_model_complexity, print_complexity_report
-
+from models.encoders.builder import build_encoder
 
 def train_contrastive_encoder(
         data_path: Union[str, Path],  # Đường dẫn đến file dữ liệu đã xử lý (.pt)
         save_dir: Union[str, Path],  # Thư mục lưu kết quả huấn luyện
         checkpoint_name: str = "best_encoder.pt",  # Đường dẫn đầy đủ đến file checkpoint sẽ lưu.
+        backbone_type: str = "standard",  # "standard" | "cnn_transformer" | "vit_1d"
         model: Optional[nn.Module] = None,
         in_channels: int = 6,  # Số kênh đầu vào (6 cho gia tốc 3 trục + quay 3 trục)
         feature_dim: int = 128,  # Kích thước vector đặc trưng từ encoder
@@ -47,7 +47,9 @@ def train_contrastive_encoder(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     # ✅ Tất cả file đều lưu trực tiếp trong save_dir
-    checkpoint_path = save_dir / checkpoint_name
+    checkpoint_path = save_dir / backbone_type / checkpoint_name
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+
     csv_history_path = save_dir / "loss_history.csv"
     complexity_path = save_dir / "complexity.json"
     config_path = save_dir / "config.json"
@@ -63,10 +65,10 @@ def train_contrastive_encoder(
 
     # 2. KHỞI TẠO MODEL
     if model is None:
-        # encoder_backbone: CNN 1D để trích xuất đặc trưng từ chuỗi thời gian
-        encoder_backbone = StandardSensorEncoder1D(
-            in_channels=in_channels,
-            feature_dim=feature_dim
+        # Khởi tạo backbone linh hoạt qua factory builder
+        encoder_backbone = build_encoder(
+            backbone_type=backbone_type,
+            in_channels=in_channels
         )
         # ssl_model: Model chính với projection head (MLP) ánh xạ sang không gian nhúng
         ssl_model = TSTCCModel(
@@ -170,7 +172,7 @@ def train_contrastive_encoder(
     if measure_complexity:
         try:
             # Tạo model hoàn chỉnh từ encoder đã train
-            encoder_backbone = StandardSensorEncoder1D(in_channels=in_channels, feature_dim=feature_dim)
+            encoder_backbone = build_encoder(backbone_type=backbone_type, in_channels=in_channels)
             encoder_backbone.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(device)))
 
             # Đo độ phức tạp của encoder (không bao gồm projection head)

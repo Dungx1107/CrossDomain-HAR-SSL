@@ -13,6 +13,7 @@ from engines.pretrain_ssl.contrastive_trainer import train_contrastive_encoder
 
 # 1. Danh sách dataset và cấu hình chạy
 DATASETS = ["uci_har", "motionsense"]
+BACKBONE_TYPE = "cnn_transformer"  # "cnn_transformer" | "vit_1d" | "standard"
 EPOCHS = 40
 BATCH_SIZE = 64
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -30,10 +31,11 @@ def main():
     for name in DATASETS:
         data_path, in_channels = DATASET_MAP[name]
         save_dir = PROJECT_ROOT / "checkpoints" / "ssl_pretrain" / name
-        checkpoint_name = f"tstcc_encoder_pretrained_{name}.pt"
+        checkpoint_name = f"tstcc_{BACKBONE_TYPE}_encoder_pretrained_{name}.pt"
 
         print(f"\n🚀 ĐANG PRETRAIN: {name.upper()}")
         print(f"📂 Dữ liệu: {data_path}")
+        print(f"🧠 Backbone       : {BACKBONE_TYPE.upper()}")
         print(f"💾 Lưu tại: {save_dir}")
         print("-" * 50)
 
@@ -41,6 +43,7 @@ def main():
             data_path=data_path,
             save_dir=save_dir,
             checkpoint_name=checkpoint_name,
+            backbone_type=BACKBONE_TYPE,
             in_channels=in_channels,
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
