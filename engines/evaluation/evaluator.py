@@ -54,14 +54,15 @@ class ModelEvaluator:
         self.class_names = class_names if class_names else ['Downstairs', 'Upstairs', 'Walking', 'Sitting', 'Standing']
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def run_inference(self, model, dataloader):
+    def run_inference(self,
+                      model,
+                      dataloader
+                      ):
         """
         Thực thi toàn bộ lượt suy luận qua DataLoader để thu thập nhãn thực tế và nhãn dự đoán.
-
         Tham số:
             model (nn.Module): Mô hình cần đánh giá.
             dataloader (DataLoader): Nạp dữ liệu kiểm thử.
-
         Trả về:
             tuple: (np.ndarray y_true, np.ndarray y_pred)
         """
@@ -84,7 +85,12 @@ class ModelEvaluator:
 
         return np.array(all_targets), np.array(all_preds)
 
-    def evaluate(self, model, test_loader, plot_save_path=None, title_prefix="Evaluation"):
+    def evaluate(self,
+                 model,
+                 test_loader,
+                 plot_save_path=None,
+                 title_prefix="Evaluation"
+                 ):
         """
         Thực hiện đánh giá toàn diện, in bảng biểu ra màn hình và lưu hình ảnh Confusion Matrix.
 

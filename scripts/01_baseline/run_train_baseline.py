@@ -38,9 +38,7 @@ from engines.evaluation.evaluator import ModelEvaluator
 from utils.complexity import measure_model_complexity, print_complexity_report
 
 
-# =============================================================================
-# KHỐI CẤU HÌNH THỰC NGHIỆM (CHỈNH TRỰC TIẾP TẠI ĐÂY RỒI BẤM RUN)
-# =============================================================================
+# KHỐI CẤU HÌNH THỰC NGHIỆM
 @dataclass
 class ExperimentConfig:
     dataset: str = "motionsense"  # 'motionsense' hoặc 'uci_har'

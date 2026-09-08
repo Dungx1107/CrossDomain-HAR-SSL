@@ -105,7 +105,11 @@ class SupervisedTrainer:
         eval_f1 = f1_score(all_targets, all_preds, average="macro")
         return eval_loss, eval_acc, eval_f1
 
-    def fit(self, train_loader, val_loader, epochs: int, model_name: str = "best_model.pt"):
+    def fit(self,
+            train_loader,
+            val_loader,
+            epochs: int,
+            model_name: str = "best_model.pt"):
         print(f"🚀 Bắt đầu huấn luyện Supervised ({epochs} epochs)...")
         for epoch in range(1, epochs + 1):
             train_loss, train_acc, train_f1 = self.train_one_epoch(train_loader)

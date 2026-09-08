@@ -71,15 +71,11 @@ def train_and_eval_finetune(
     target_device = device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
     encoder_ckpt_path = Path(encoder_checkpoint_path)
 
-    # -------------------------------------------------------------------------
     # 1. KIỂM TRA ĐƯỜNG DẪN CHECKPOINT SSL NGUỒN
-    # -------------------------------------------------------------------------
     if not encoder_ckpt_path.exists():
         raise FileNotFoundError(f"❌ Không tìm thấy file trọng số SSL tại: {encoder_ckpt_path}")
 
-    # -------------------------------------------------------------------------
     # 2. KHỞI TẠO MÔ HÌNH TOÀN PHẦN (BACKBONE + CLASSIFIER HEAD)
-    # -------------------------------------------------------------------------
     used_encoder = encoder if encoder is not None else StandardSensorEncoder1D(
         in_channels=in_channels,
         feature_dim=feature_dim
@@ -98,9 +94,7 @@ def train_and_eval_finetune(
         classifier=used_classifier
     ).to(target_device)
 
-    # -------------------------------------------------------------------------
     # 3. NẠP TRỌNG SỐ PRETRAINED VÀO BACKBONE
-    # -------------------------------------------------------------------------
     checkpoint = torch.load(encoder_ckpt_path, map_location=target_device, weights_only=True)
     encoder_dict = checkpoint["encoder"] if isinstance(checkpoint, dict) and "encoder" in checkpoint else checkpoint
 
@@ -112,9 +106,7 @@ def train_and_eval_finetune(
     print(f"📦 Checkpoint SSL nguồn: {encoder_ckpt_path.name}")
     print(f"🎯 Số lớp đích (Target Classes): {num_classes} | Kênh vào (Channels): {in_channels}")
 
-    # -------------------------------------------------------------------------
     # 4. CẤU HÌNH ĐÓNG BĂNG & THIẾT LẬP BỘ TỐI ƯU (OPTIMIZER)
-    # -------------------------------------------------------------------------
     if freeze_backbone:
         # KỊCH BẢN 1: LINEAR PROBING (Khóa gradient của Backbone)
         for param in model.encoder.parameters():
@@ -137,9 +129,7 @@ def train_and_eval_finetune(
         ])
         print(f"🔓 Trạng thái Backbone: MỞ KHÓA (Layer-wise LR: Backbone={backbone_lr:.1e}, Head={head_lr:.1e})")
 
-    # -------------------------------------------------------------------------
-    # 5. ĐO LƯỜNG ĐỘ PHỨC TẠP TÍNH TOÁN (ĐƯA RA NGOÀI IF/ELSE)
-    # -------------------------------------------------------------------------
+    # 5. ĐO LƯỜNG ĐỘ PHỨC TẠP TÍNH TOÁN
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     macs_val = "N/A"
@@ -168,9 +158,7 @@ def train_and_eval_finetune(
     print(f"   - Dung lượng RAM/VRAM           : {model_size_mb} MB")
     print("=" * 80)
 
-    # -------------------------------------------------------------------------
     # 6. VÒNG LẶP HUẤN LUYỆN & THEO DÕI HỘI TỤ
-    # -------------------------------------------------------------------------
     criterion = nn.CrossEntropyLoss()
     scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=5)
 
@@ -228,9 +216,7 @@ def train_and_eval_finetune(
             print(f"Epoch [{epoch:02d}/{epochs:02d}] | Train Loss: {avg_train_loss:.4f} | "
                   f"Val Acc: {val_acc:5.2f}% | Val Macro F1: {val_f1:5.2f}% (Best: {best_val_f1:5.2f}%)")
 
-    # -------------------------------------------------------------------------
     # 7. ĐÁNH GIÁ TRÊN TẬP TEST ĐỘC LẬP BẰNG TRỌNG SỐ TỐI ƯU NHẤT
-    # -------------------------------------------------------------------------
     if best_model_state is not None:
         model.load_state_dict({k: v.to(target_device) for k, v in best_model_state.items()})
 
@@ -252,9 +238,7 @@ def train_and_eval_finetune(
     print(f"   - Test Macro F1 : {test_f1:6.2f}% (Chỉ số nghiên cứu chính)")
     print("-" * 80)
 
-    # -------------------------------------------------------------------------
     # 8. LƯU MÔ HÌNH VÀ SIÊU DỮ LIỆU METADATA RA ĐĨA
-    # -------------------------------------------------------------------------
     checkpoint_file_size_kb = 0.0
     if save_model_path is not None and best_model_state is not None:
         save_path = Path(save_model_path)

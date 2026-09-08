@@ -41,7 +41,6 @@ def time_warp(x, sigma=0.2, num_knots=4):
     return x_warped
 
 
-
 # =============================================================================
 # BỘ PHỐI HỢP WEAK & STRONG AUGMENTATION
 # =============================================================================
@@ -54,7 +53,7 @@ class TS_TCC_Augmentation:
                  jitter_sigma=0.03,
                  scale_sigma=0.05,
                  warp_sigma=0.1,
-    ):
+                 ):
         self.jitter_sigma = jitter_sigma
         self.scale_sigma = scale_sigma
         self.warp_sigma = warp_sigma
