@@ -21,17 +21,22 @@ from config.motionsense_config import MotionSenseConfig
 from utils.sampling import sample_subset_by_ratio
 from engines.transfer.finetune_trainer import train_and_eval_finetune
 from engines.evaluation.evaluator import ModelEvaluator
+from models.encoders.builder import build_encoder
 from utils.complexity import measure_model_complexity, print_complexity_report
 
-# =============================================================================
 # CẤU HÌNH
-# =============================================================================
 COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
 NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 SEEDS = [42, 123, 456]
+# SEEDS = [42, 123]
+# SEEDS = [42]
+
 LABEL_FRACTIONS = [0.01, 0.05, 0.1, 0.5, 1.0]
+# LABEL_FRACTIONS = [0.01, 0.05, 0.1]
+
 EPOCHS = 40
 BATCH_SIZE = 64
 MEASURE_COMPLEXITY = True
@@ -91,26 +96,33 @@ def load_and_prepare_target_data(domain_name: str):
     )
 
 
-def run_experiment_for_pair(source_domain: str, target_domain: str):
+def run_experiment_for_pair(
+        source_domain: str,
+        target_domain: str,
+        backbone_type: str = "standard",  # "cnn_transformer" , "vit_1d"
+):
     """Thực thi benchmark chuyển giao."""
     print("\n" + "=" * 90)
     print(f"🔄 CHUYỂN GIAO MIỀN: [{source_domain.upper()}] ➔ [{target_domain.upper()}]")
     print(f"🎯 {NUM_COMMON_CLASSES} LỚP CHUNG: {COMMON_CLASS_NAMES}")
     print("=" * 90)
 
-    source_ckpt = PROJECT_ROOT / "checkpoints" / "ssl_pretrain" / source_domain / f"tstcc_encoder_pretrained_{source_domain}.pt"
+    source_ckpt = (PROJECT_ROOT / "checkpoints/ssl_pretrain/" /
+                   source_domain / backbone_type / f"tstcc_{backbone_type}_encoder_pretrained_{source_domain}.pt")
     if not source_ckpt.exists():
         raise FileNotFoundError(f"❌ Không tìm thấy checkpoint SSL nguồn tại: {source_ckpt}")
     print(f"📦 Checkpoint SSL nguồn: {source_ckpt}")
 
     # Load dữ liệu đã lọc 5 lớp
-    x_train_full, y_train_full, x_val_full, y_val_full, x_test, y_test, in_channels = load_and_prepare_target_data(target_domain)
+    x_train_full, y_train_full, x_val_full, y_val_full, x_test, y_test, in_channels = load_and_prepare_target_data(
+        target_domain)
 
     print(f"✅ Train: {len(x_train_full)} mẫu")
     print(f"✅ Val  : {len(x_val_full)} mẫu")
     print(f"✅ Test : {len(x_test)} mẫu (5 lớp)")
 
-    base_save_dir = PROJECT_ROOT / "checkpoints" / "cross_domain" / f"{source_domain}_to_{target_domain}"
+    # base_save_dir = PROJECT_ROOT / "checkpoints" / "cross_domain" / backbone_type / f"{source_domain}_to_{target_domain}"
+    base_save_dir = PROJECT_ROOT / "checkpoints" / "cross_domain/test_local" / backbone_type / f"{source_domain}_to_{target_domain}"
     base_save_dir.mkdir(parents=True, exist_ok=True)
 
     evaluator = ModelEvaluator(class_names=COMMON_CLASS_NAMES, device=torch.device(DEVICE))
@@ -125,6 +137,7 @@ def run_experiment_for_pair(source_domain: str, target_domain: str):
     for proto in PROTOCOLS_TO_RUN:
         proto_name = proto["name"]
         freeze_bb = proto["freeze_backbone"]
+        # proto_save_dir = base_save_dir / proto_name
         proto_save_dir = base_save_dir / proto_name
         ckpt_save_dir = proto_save_dir / "checkpoints"
         plots_save_dir = proto_save_dir / "plots"
@@ -168,6 +181,7 @@ def run_experiment_for_pair(source_domain: str, target_domain: str):
                     val_loader=val_loader,
                     test_loader=test_loader,
                     encoder_checkpoint_path=source_ckpt,
+                    encoder=build_encoder(backbone_type=backbone_type, in_channels=in_channels),
                     num_classes=NUM_COMMON_CLASSES,
                     in_channels=in_channels,
                     epochs=EPOCHS,
@@ -261,7 +275,11 @@ def main():
     print("=" * 90)
 
     for src, tgt in TRANSFER_PAIRS:
-        run_experiment_for_pair(source_domain=src, target_domain=tgt)
+        run_experiment_for_pair(
+            source_domain=src,
+            target_domain=tgt,
+            backbone_type="vit_1d" # # "cnn_transformer" | "vit_1d" | "standard"
+        )
 
     print("🎉 HOÀN THÀNH!")
 

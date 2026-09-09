@@ -13,7 +13,7 @@ from engines.pretrain_ssl.contrastive_trainer import train_contrastive_encoder
 
 # 1. Danh sách dataset và cấu hình chạy
 DATASETS = ["uci_har", "motionsense"]
-BACKBONE_TYPE = "cnn_transformer"  # "cnn_transformer" | "vit_1d" | "standard"
+BACKBONE_TYPE = "vit_1d"  # "cnn_transformer" | "vit_1d" | "standard"
 EPOCHS = 40
 BATCH_SIZE = 64
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

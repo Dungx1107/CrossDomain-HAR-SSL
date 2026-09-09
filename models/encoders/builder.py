@@ -48,27 +48,3 @@ def build_encoder(
             f"Lựa chọn hợp lệ: ['standard', 'cnn_transformer', 'vit_1d']"
         )
 
-
-if __name__ == "__main__":
-    import torch
-
-    print("=" * 70)
-    print("🧪 KIỂM TRA BUILDER VÀ CÁC ENCODER")
-    print("=" * 70)
-
-    # Giả lập batch dữ liệu cảm biến: batch_size=4, 6 kênh (Acc+Gyro), 128 timesteps
-    x = torch.randn(4, 6, 128)
-    print(f"📥 Input shape: {tuple(x.shape)}")
-
-    for backbone in ["standard", "cnn_transformer", "vit_1d"]:
-        try:
-            encoder = build_encoder(backbone_type=backbone, in_channels=6)
-            out = encoder(x)
-            params = sum(p.numel() for p in encoder.parameters())
-            print(f"\n✅ Backbone [{backbone.upper()}]:")
-            print(f"   - Output shape : {tuple(out.shape)}")
-            print(f"   - Total params : {params:,}")
-        except Exception as e:
-            print(f"\n❌ Backbone [{backbone.upper()}] LỖI: {e}")
-
-    print("\n" + "=" * 70)

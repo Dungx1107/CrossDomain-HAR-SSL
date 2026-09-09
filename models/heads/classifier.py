@@ -37,5 +37,7 @@ class ClassifierHead(nn.Module):
         Trả về logits shape: (Batch_Size, num_classes) -> vd: (64, 6)
         """
         x = self.dropout(x)
+        if x.dim() == 3:
+            x = torch.mean(x, dim=-1)
         logits = self.fc(x)
         return logits
