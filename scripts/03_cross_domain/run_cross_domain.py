@@ -1,11 +1,13 @@
 """
 ===============================================================================
-SCRIPT: CENTRALIZED CROSS-DOMAIN ADAPTATION BENCHMARK (TS-TCC SSL)
+SCRIPT: CENTRALIZED CROSS-DOMAIN ADAPTATION BENCHMARK
+Hỗ trợ cả TS-TCC và Prototype SSL thông qua argument --method
 ===============================================================================
 """
 
 import sys
 import json
+import argparse                                    # [SỬA #1] thêm argparse
 from pathlib import Path
 import numpy as np
 import torch
@@ -24,6 +26,16 @@ from engines.evaluation.evaluator import ModelEvaluator
 from models.encoders.builder import build_encoder
 from utils.complexity import measure_model_complexity, print_complexity_report
 
+# ================== ARGUMENT PARSER ==================
+parser = argparse.ArgumentParser(description="Cross-Domain HAR Benchmark")
+parser.add_argument("--method", type=str, default="prototype",
+                    choices=["tstcc", "prototype"],
+                    help="Phương pháp SSL đã dùng để pretrain")
+parser.add_argument("--backbone", type=str, default="vit_1d",
+                    choices=["standard", "cnn_transformer", "vit_1d"],
+                    help="Loại backbone")
+args = parser.parse_args()
+
 # CẤU HÌNH
 COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
 NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
@@ -31,11 +43,7 @@ NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 SEEDS = [42, 123, 456]
-# SEEDS = [42, 123]
-# SEEDS = [42]
-
 LABEL_FRACTIONS = [0.01, 0.05, 0.1, 0.5, 1.0]
-# LABEL_FRACTIONS = [0.01, 0.05, 0.1]
 
 EPOCHS = 40
 BATCH_SIZE = 64
@@ -68,16 +76,11 @@ DOMAIN_DATA_PATHS = {
 
 
 def load_and_prepare_target_data(domain_name: str):
-    """
-    Nạp dữ liệu miền đích.
-    ✅ Lọc chỉ giữ 5 lớp chung (0-4), loại bỏ nhãn 5.
-    """
     cfg = DOMAIN_DATA_PATHS[domain_name]
     raw_train = torch.load(cfg["train_path"], map_location="cpu", weights_only=True)
     raw_val = torch.load(cfg["val_path"], map_location="cpu", weights_only=True)
     raw_test = torch.load(cfg["test_path"], map_location="cpu", weights_only=True)
 
-    # ✅ Lọc chỉ giữ 5 lớp chung (0-4)
     def filter_5_classes(samples, labels):
         mask = (labels >= 0) & (labels < 5)
         return samples[mask], labels[mask]
@@ -88,41 +91,33 @@ def load_and_prepare_target_data(domain_name: str):
 
     print(f"   🔍 Sau khi lọc 5 lớp: Train={len(x_train)}, Val={len(x_val)}, Test={len(x_test)}")
 
-    return (
-        x_train, y_train,
-        x_val, y_val,
-        x_test, y_test,
-        cfg["in_channels"]
-    )
+    return (x_train, y_train, x_val, y_val, x_test, y_test, cfg["in_channels"])
 
 
-def run_experiment_for_pair(
-        source_domain: str,
-        target_domain: str,
-        backbone_type: str = "standard",  # "cnn_transformer" , "vit_1d"
-):
-    """Thực thi benchmark chuyển giao."""
+def run_experiment_for_pair(source_domain: str, target_domain: str, backbone_type: str = "standard"):
     print("\n" + "=" * 90)
     print(f"🔄 CHUYỂN GIAO MIỀN: [{source_domain.upper()}] ➔ [{target_domain.upper()}]")
     print(f"🎯 {NUM_COMMON_CLASSES} LỚP CHUNG: {COMMON_CLASS_NAMES}")
+    print(f"🔧 Phương pháp SSL: {args.method.upper()} | Backbone: {backbone_type}")
     print("=" * 90)
 
     source_ckpt = (PROJECT_ROOT / "checkpoints/ssl_pretrain/" /
-                   source_domain / backbone_type / f"tstcc_{backbone_type}_encoder_pretrained_{source_domain}.pt")
+                   source_domain / backbone_type /
+                   f"{args.method}_{backbone_type}_encoder_pretrained_{source_domain}.pt")
+
     if not source_ckpt.exists():
         raise FileNotFoundError(f"❌ Không tìm thấy checkpoint SSL nguồn tại: {source_ckpt}")
     print(f"📦 Checkpoint SSL nguồn: {source_ckpt}")
 
-    # Load dữ liệu đã lọc 5 lớp
-    x_train_full, y_train_full, x_val_full, y_val_full, x_test, y_test, in_channels = load_and_prepare_target_data(
-        target_domain)
+    x_train_full, y_train_full, x_val_full, y_val_full, x_test, y_test, in_channels = load_and_prepare_target_data(target_domain)
 
     print(f"✅ Train: {len(x_train_full)} mẫu")
     print(f"✅ Val  : {len(x_val_full)} mẫu")
     print(f"✅ Test : {len(x_test)} mẫu (5 lớp)")
 
-    # base_save_dir = PROJECT_ROOT / "checkpoints" / "cross_domain" / backbone_type / f"{source_domain}_to_{target_domain}"
-    base_save_dir = PROJECT_ROOT / "checkpoints" / "cross_domain/test_local" / backbone_type / f"{source_domain}_to_{target_domain}"
+    # Đường dẫn lưu kết quả — thêm method vào path để không ghi đè giữa 2 phương pháp
+    base_save_dir = (PROJECT_ROOT / "checkpoints" / "cross_domain" / args.method /
+                     backbone_type / f"{source_domain}_to_{target_domain}")
     base_save_dir.mkdir(parents=True, exist_ok=True)
 
     evaluator = ModelEvaluator(class_names=COMMON_CLASS_NAMES, device=torch.device(DEVICE))
@@ -137,7 +132,6 @@ def run_experiment_for_pair(
     for proto in PROTOCOLS_TO_RUN:
         proto_name = proto["name"]
         freeze_bb = proto["freeze_backbone"]
-        # proto_save_dir = base_save_dir / proto_name
         proto_save_dir = base_save_dir / proto_name
         ckpt_save_dir = proto_save_dir / "checkpoints"
         plots_save_dir = proto_save_dir / "plots"
@@ -227,8 +221,8 @@ def run_experiment_for_pair(
 
         all_protocols_summary[proto_name] = fraction_results
 
-    # Lưu config
     config_info = {
+        "method": args.method,
         "source_domain": source_domain,
         "target_domain": target_domain,
         "common_classes": COMMON_CLASS_NAMES,
@@ -250,7 +244,7 @@ def run_experiment_for_pair(
         json.dump(all_protocols_summary, f, indent=4)
 
     print("\n" + "=" * 90)
-    print(f"🏆 BẢNG TỔNG HỢP: {source_domain.upper()} ➔ {target_domain.upper()}")
+    print(f"🏆 BẢNG TỔNG HỢP: {source_domain.upper()} ➔ {target_domain.upper()} | METHOD: {args.method.upper()}")
     print("=" * 90)
     print(f"{'Tỷ lệ':<12} | {'Số mẫu':<10} | {'Linear Probing (F1 %)':<25} | {'Full Fine-Tuning (F1 %)'}")
     print("-" * 90)
@@ -269,7 +263,8 @@ def run_experiment_for_pair(
 
 def main():
     print(f"🌟 ĐÁNH GIÁ CHUYỂN GIAO MIỀN (5 COMMON CLASSES)")
-    print(f"🖥️ Device: {DEVICE} | Seeds: {SEEDS}")
+    print(f"🔧 Method: {args.method.upper()} | Backbone: {args.backbone} | Device: {DEVICE}")
+    print(f"📅 Seeds: {SEEDS}")
     total_runs = len(TRANSFER_PAIRS) * len(PROTOCOLS_TO_RUN) * len(LABEL_FRACTIONS) * len(SEEDS)
     print(f"📊 Tổng số lần train/eval: {total_runs}")
     print("=" * 90)
@@ -278,7 +273,7 @@ def main():
         run_experiment_for_pair(
             source_domain=src,
             target_domain=tgt,
-            backbone_type="vit_1d" # # "cnn_transformer" | "vit_1d" | "standard"
+            backbone_type=args.backbone
         )
 
     print("🎉 HOÀN THÀNH!")
