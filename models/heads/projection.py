@@ -28,9 +28,9 @@ class ProjectionHead(nn.Module):
         super().__init__()
         hidden_dim = hidden_dim if hidden_dim is not None else feature_dim
 
-        # MLP 2 lớp với hàm kích hoạt phi tuyến ReLU
         self.net = nn.Sequential(
             nn.Linear(feature_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
             nn.ReLU(inplace=True),
             nn.Linear(hidden_dim, projection_dim)
         )
