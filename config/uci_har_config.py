@@ -17,9 +17,7 @@ IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 
 
 class UCIHARConfig:
-    # ========================================================================
     # 2. ĐƯỜNG DẪN DỮ LIỆU & CHECKPOINT
-    # ========================================================================
     if IS_KAGGLE:
         BASE_INPUT = Path("/kaggle/input")
         DATA_DIR = BASE_INPUT / "har-processed-data" / "uci_har"
@@ -51,6 +49,7 @@ class UCIHARConfig:
         3: 2,  # WALKING_DOWNSTAIRS ✅ Giống MotionSense (dws: 2)
         4: 3,  # SITTING     ✅ Giống MotionSense (sit: 3)
         5: 4,  # STANDING    ✅ Giống MotionSense (std: 4)
+
         6: 5,  # LAYING      ⚠️ Chỉ có ở UCI-HAR
     }
 
@@ -74,8 +73,6 @@ class UCIHARConfig:
     ]
     IN_CHANNELS = len(SIGNAL_NAMES)  # 6 kênh
 
-    # ========================================================================
     # 6. THAM SỐ CỬA SỔ (ĐỒNG BỘ VỚI MOTIONSENSE)
-    # ========================================================================
     WINDOW_SIZE = 128   # 2.56 giây @ 50Hz
     STRIDE = 64         # Overlap 50%

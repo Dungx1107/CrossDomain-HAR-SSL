@@ -1,7 +1,5 @@
 """
-===============================================================================
 TIỀN XỬ LÝ VÀ ĐÓNG GÓI DỮ LIỆU: MOTIONSENSE
-===============================================================================
 """
 
 import os
@@ -27,19 +25,20 @@ TRAIN_SUBJECTS = MotionSenseConfig.TRAIN_SUBJECTS
 VAL_SUBJECTS = MotionSenseConfig.VAL_SUBJECTS
 TEST_SUBJECTS = MotionSenseConfig.TEST_SUBJECTS
 
-# ✅ LABEL_MAP vẫn để ở đây vì nó ánh xạ từ tên file CSV
-# (khác với LABEL_MAP trong config dùng cho tên lớp)
 LABEL_MAP = {
-    'dws': 0,  # Downstairs
+    'wlk': 0,  # Walking
     'ups': 1,  # Upstairs
-    'wlk': 2,  # Walking
+    'dws': 2,  # Downstairs
     'sit': 3,  # Sitting
     'std': 4,  # Standing
-    'jog': 5   # Jogging
+
+    'jog': 5  # Jogging # ⚠️ Chỉ có ở MotionSense (UCI-HAR không có)
 }
 
-
-def process_subject_subset(subjects_list, subset_name: str = "train") -> dict:
+def process_subject_subset(
+        subjects_list,
+        subset_name: str = "train"
+) -> dict:
     print(f"\n⏳ Đang xử lý tập: {subset_name.upper()} (Người dùng: {subjects_list})...")
     windows = []
     labels = []
@@ -53,8 +52,7 @@ def process_subject_subset(subjects_list, subset_name: str = "train") -> dict:
         folder_name = os.path.basename(folder)
         act_code = folder_name.split('_')[0]
 
-        if act_code not in LABEL_MAP:
-            continue
+        if act_code not in LABEL_MAP: continue
 
         label = LABEL_MAP[act_code]
 
@@ -65,10 +63,11 @@ def process_subject_subset(subjects_list, subset_name: str = "train") -> dict:
                 sensor_data = df[FEATURE_COLS].values
                 num_samples = len(sensor_data)
 
-                # ✅ Dùng WINDOW_SIZE và STRIDE từ config
+                # Dùng WINDOW_SIZE và STRIDE từ config  # Bản chất: len(labels) chính là tổng số sample
                 for start in range(0, num_samples - WINDOW_SIZE + 1, STRIDE):
                     end = start + WINDOW_SIZE
                     window = sensor_data[start:end].T  # Shape: (6, 128)
+
                     windows.append(window)
                     labels.append(label)
                     subjects.append(sub_id)
@@ -101,17 +100,17 @@ def main():
     train_data = process_subject_subset(TRAIN_SUBJECTS, "train")
     val_data = process_subject_subset(VAL_SUBJECTS, "val")
     test_data = process_subject_subset(TEST_SUBJECTS, "test")
-
-    torch.save(train_data, os.path.join(OUTPUT_DIR, "train.pt"))
-    torch.save(val_data, os.path.join(OUTPUT_DIR, "val.pt"))
-    torch.save(test_data, os.path.join(OUTPUT_DIR, "test.pt"))
-
     all_data = {
         "samples": torch.cat([train_data["samples"], val_data["samples"], test_data["samples"]], dim=0),
         "labels": torch.cat([train_data["labels"], val_data["labels"], test_data["labels"]], dim=0),
         "subjects": torch.cat([train_data["subjects"], val_data["subjects"], test_data["subjects"]], dim=0)
     }
+
+    torch.save(train_data, os.path.join(OUTPUT_DIR, "train.pt"))
+    torch.save(val_data, os.path.join(OUTPUT_DIR, "val.pt"))
+    torch.save(test_data, os.path.join(OUTPUT_DIR, "test.pt"))
     torch.save(all_data, os.path.join(OUTPUT_DIR, "dataset_all.pt"))
+
     print("\n✅ Hoàn thành đóng gói toàn bộ file .pt cho MotionSense!")
 
 

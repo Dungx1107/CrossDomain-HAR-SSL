@@ -29,23 +29,19 @@ class BaseHARDataset(Dataset):
                  pt_file_path: Union[str, Path],
                  fraction: float = 1.0,
                  seed: int = 42
-    ):
+                 ):
         # Chuyển đường dẫn về Path object để dễ xử lý
         pt_file_path = Path(pt_file_path)
         if not pt_file_path.exists():
             raise FileNotFoundError(f"❌ Không tìm thấy file dữ liệu: {pt_file_path}")
 
-        # Load dữ liệu từ file .pt (bao gồm samples, labels, subjects)
+        # Load dữ liệu từ file .pt (gồm samples, labels, subjects)
         data = torch.load(pt_file_path, map_location="cpu")
 
-        # Lấy samples (dữ liệu cảm biến) và labels (nhãn hoạt động)
+        # Lấy samples (dữ liệu cảm biến), labels (nhãn hoạt động), subject (người thực hiện)
         self.samples = data["samples"]
         self.labels = data["labels"].squeeze()  # squeeze() để bỏ chiều thừa
-
-        # Lấy subjects nếu có (dùng cho cross-domain validation)
-        self.subjects = data.get("subjects", None)
-        if self.subjects is not None:
-            self.subjects = self.subjects.squeeze()
+        self.subjects = data.get("subjects", None).squeeze()
 
         # Ép kiểu dữ liệu về đúng chuẩn PyTorch
         # samples -> float32, labels -> long (dùng cho CrossEntropyLoss)
@@ -59,20 +55,36 @@ class BaseHARDataset(Dataset):
         else:
             self.labels = self.labels.long()
 
-        # ============================================================
-        # XỬ LÝ FEW-SHOT: Cắt dữ liệu theo tỷ lệ fraction (1%, 5%, 10%)
-        # ============================================================
+        # XỬ LÝ FEW-SHOT: Phân tầng giữ nguyên tỷ lệ + Chốt chặn tối thiểu 1 mẫu
         if 0.0 < fraction < 1.0:
-            num_total = len(self.labels)                      # Tổng số mẫu ban đầu
-            num_keep = max(1, int(num_total * fraction))     # Số mẫu cần giữ lại (tối thiểu 1)
-
-            # Tạo generator với seed cố định để kết quả reproducible
+            unique_classes = torch.unique(self.labels)
             g = torch.Generator().manual_seed(seed)
+            selected_indices = []
 
-            # Random permutation (xáo trộn) và lấy num_keep mẫu đầu tiên
-            indices = torch.randperm(num_total, generator=g)[:num_keep]
+            for cls in unique_classes:
+                # 1. Lấy toàn bộ vị trí index của class hiện tại
+                cls_indices = torch.nonzero(self.labels == cls, as_tuple=False).squeeze(1)
+                num_total_cls = len(cls_indices)
 
-            # Cắt samples, labels, subjects theo indices đã chọn
+                # 2. Tính số mẫu theo tỷ lệ fraction (làm tròn chuẩn số học)
+                # Chốt sàn tối thiểu 1 mẫu để không bao giờ mất class
+                num_keep_cls = max(1, round(num_total_cls * fraction))
+
+                # Tránh trường hợp round vượt quá số lượng mẫu thực tế của class
+                num_keep_cls = min(num_keep_cls, num_total_cls)
+
+                # 3. Bốc ngẫu nhiên không hoàn lại trong nội bộ class
+                perm = torch.randperm(num_total_cls, generator=g)[:num_keep_cls]
+                selected_indices.append(cls_indices[perm])
+
+            # 4. Gộp toàn bộ chỉ số của các class lại
+            indices = torch.cat(selected_indices)
+
+            # 5. Xáo trộn lại toàn bộ indices để tránh việc các nhãn bị gom thành cụm liên tiếp
+            shuffle_perm = torch.randperm(len(indices), generator=g)
+            indices = indices[shuffle_perm]
+
+            # 6. Cắt dữ liệu thực tế
             self.samples = self.samples[indices]
             self.labels = self.labels[indices]
             if self.subjects is not None:
@@ -85,7 +97,6 @@ class BaseHARDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Lấy mẫu thứ idx trong dataset.
-
         Returns:
             Tuple (samples, labels): samples shape (6, 128), labels là int (0-5)
         """
@@ -128,14 +139,14 @@ def get_har_dataloaders(
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
-        shuffle=True,                                    # Xáo trộn để training tốt hơn
+        shuffle=True,  # Xáo trộn để training tốt hơn
         drop_last=True if len(train_ds) >= batch_size else False,  # Bỏ batch cuối nếu không đủ
         num_workers=num_workers
     )
     val_loader = DataLoader(
         val_ds,
         batch_size=batch_size,
-        shuffle=False,                                   # Validation không cần xáo trộn
+        shuffle=False,  # Validation không cần xáo trộn
         drop_last=False,
         num_workers=num_workers
     )

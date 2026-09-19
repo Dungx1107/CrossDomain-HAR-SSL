@@ -80,27 +80,3 @@ class TSTCCModel(nn.Module):
         h_strong = self.projection_head(z_strong_pooled, normalize=True)
 
         return h_weak, h_strong
-
-
-if __name__ == "__main__":
-    print("=" * 70)
-    print("🧪 KIỂM TRA TSTCCModel VỚI CẢ 3 BACKBONE")
-    print("=" * 70)
-
-    from models.encoders.builder import build_encoder
-
-    x1 = torch.randn(4, 6, 128)
-    x2 = torch.randn(4, 6, 128)
-
-    for backbone in ["standard", "cnn_transformer", "vit_1d"]:
-        try:
-            enc = build_encoder(backbone_type=backbone, in_channels=6)
-            model = TSTCCModel(encoder=enc, in_channels=6, feature_dim=128, projection_dim=64)
-            h_w, h_s = model(x1, x2)
-            print(f"✅ Backbone [{backbone.upper()}]:")
-            print(f"   - Output h_weak shape   : {tuple(h_w.shape)}")
-            print(f"   - Output h_strong shape : {tuple(h_s.shape)}")
-        except Exception as e:
-            print(f"❌ Backbone [{backbone.upper()}] LỖI: {e}")
-
-    print("=" * 70)

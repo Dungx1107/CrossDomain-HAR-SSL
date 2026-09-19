@@ -21,10 +21,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../.."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# ✅ IMPORT TỪ CONFIG (không viết lại)
 from config.uci_har_config import UCIHARConfig
 
-# Lấy cấu hình từ config
 RAW_UCI_DIR = UCIHARConfig.RAW_DATA_DIR
 OUTPUT_DIR = UCIHARConfig.DATA_DIR
 SIGNAL_NAMES = UCIHARConfig.SIGNAL_NAMES
@@ -35,8 +33,6 @@ VAL_SUBJECTS_UCI = UCIHARConfig.VAL_SUBJECTS
 def load_signals(subset_type: str = "train") -> np.ndarray:
     """Đọc 6 file tín hiệu và stack thành 1 tensor (N, 6, 128)."""
     subset_dir = os.path.join(RAW_UCI_DIR, subset_type, "Inertial Signals")
-    if not os.path.exists(subset_dir):
-        subset_dir = os.path.join(RAW_UCI_DIR, "UCI HAR Dataset", subset_type, "Inertial Signals")
 
     if not os.path.exists(subset_dir):
         raise FileNotFoundError(f"❌ Không tìm thấy thư mục tín hiệu: {subset_dir}")
@@ -56,7 +52,7 @@ def process_raw_subset(subset_type: str = "train"):
 
     base_dir = os.path.join(RAW_UCI_DIR, subset_type)
     if not os.path.exists(base_dir):
-        base_dir = os.path.join(RAW_UCI_DIR, "UCI HAR Dataset", subset_type)
+        raise FileNotFoundError(f"❌ Không tìm thấy thư mục tín hiệu: {base_dir}")
 
     y_path = os.path.join(base_dir, f"y_{subset_type}.txt")
     sub_path = os.path.join(base_dir, f"subject_{subset_type}.txt")

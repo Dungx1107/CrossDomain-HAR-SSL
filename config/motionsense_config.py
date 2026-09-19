@@ -17,9 +17,8 @@ IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 
 
 class MotionSenseConfig:
-    # ========================================================================
+
     # 2. ĐƯỜNG DẪN DỮ LIỆU & CHECKPOINT
-    # ========================================================================
     if IS_KAGGLE:
         BASE_INPUT = Path("/kaggle/input")
         PROCESSED_DIR = BASE_INPUT / "har-processed-data" / "motionsense"
@@ -34,24 +33,6 @@ class MotionSenseConfig:
     PROCESSED_TRAIN_PATH = PROCESSED_DIR / "train.pt"
     PROCESSED_VAL_PATH = PROCESSED_DIR / "val.pt"
     PROCESSED_TEST_PATH = PROCESSED_DIR / "test.pt"
-
-    # ========================================================================
-    # 3. ÁNH XẠ NHÃN (LABEL MAP) - ĐỒNG BỘ VỚI UCI-HAR
-    # ========================================================================
-    # ⚠️ QUAN TRỌNG: Các lớp chung phải có cùng index với UCI-HAR
-    # - 5 lớp chung: Walking, Upstairs, Downstairs, Sitting, Standing
-    # - 1 lớp riêng: Jogging (chỉ có ở MotionSense)
-
-    LABEL_MAP = {
-        # === CÁC LỚP CHUNG (GIỐNG UCI-HAR) ===
-        'Walking': 0,  # ✅ Giống UCI-HAR (Walking: 0)
-        'Upstairs': 1,  # ✅ Giống UCI-HAR (Upstairs: 1)
-        'Downstairs': 2,  # ✅ Giống UCI-HAR (Downstairs: 2)
-        'Sitting': 3,  # ✅ Giống UCI-HAR (Sitting: 3)
-        'Standing': 4,  # ✅ Giống UCI-HAR (Standing: 4)
-
-        'Jogging': 5,  # ⚠️ Chỉ có ở MotionSense (UCI-HAR không có)
-    }
 
     # Tên lớp theo thứ tự index
     CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing', 'Jogging']
