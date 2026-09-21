@@ -1,5 +1,13 @@
+"""
+===============================================================================
+SCRIPT: PRETRAIN PROTOTYPE SSL ENCODER (SwAV-INSPIRED)
+Chuẩn hóa đối số và pipeline tương thích hoàn toàn với run_pretrain_contrastive.py
+===============================================================================
+"""
+
 import sys
 import math
+import argparse
 from pathlib import Path
 import torch
 import torch.nn as nn
@@ -17,59 +25,71 @@ from models.encoders.builder import build_encoder
 from models.ssl.prototype.cluster_model import PrototypicalHARModel
 from losses.swav_loss import SwAVPrototypeLoss
 
-# ================== CẤU HÌNH THỰC NGHIỆM ==================
-DATASETS = ["uci_har", "motionsense"]
-# Đầy đủ 4 kiến trúc benchmark đồng bộ
-BACKBONE_TYPES = ["standard", "tstcc", "cnn_transformer", "vit_1d"]
+# ================== ARGUMENT PARSER ==================
+parser = argparse.ArgumentParser(description="Pretrain Prototype SSL (SwAV-inspired) trên UCI-HAR & MotionSense")
+parser.add_argument(
+    "--backbone",
+    type=str,
+    default="standard",
+    choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
+    help="Loại kiến trúc backbone (mặc định: standard)"
+)
+parser.add_argument(
+    "--epochs",
+    type=int,
+    default=40,
+    help="Số epoch pretrain (mặc định: 40)"
+)
+parser.add_argument(
+    "--batch_size",
+    type=int,
+    default=64,
+    help="Batch size (mặc định: 64)"
+)
+parser.add_argument(
+    "--datasets",
+    nargs="+",
+    default=["uci_har", "motionsense"],
+    help="Danh sách dataset cần pretrain"
+)
+parser.add_argument(
+    "--lr",
+    type=float,
+    default=3e-4,
+    help="Base learning rate (mặc định: 3e-4)"
+)
+parser.add_argument(
+    "--num_prototypes",
+    type=int,
+    default=45,
+    help="Số lượng prototype cluster K (mặc định: 45)"
+)
+args = parser.parse_args()
 
-EPOCHS = 40
-WARMUP_EPOCHS = 5
-BATCH_SIZE = 64
-BASE_LR = 3e-4
-WEIGHT_DECAY = 1e-4
-NUM_PROTOTYPES = 45            # K = 45
-TAU_S = 0.1                    # Softmax temperature
-EPSILON = 0.05                 # Sinkhorn temperature
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 DATASET_MAP = {
-    "motionsense": (Path(MotionSenseConfig.DATA_ALL_PATH), int(MotionSenseConfig.IN_CHANNELS)),
-    "uci_har": (Path(UCIHARConfig.DATA_ALL_PATH), int(UCIHARConfig.IN_CHANNELS)),
+    "motionsense": (
+        Path(MotionSenseConfig.DATA_ALL_PATH),
+        int(MotionSenseConfig.IN_CHANNELS)
+    ),
+    "uci_har": (
+        Path(UCIHARConfig.DATA_ALL_PATH),
+        int(UCIHARConfig.IN_CHANNELS)
+    ),
 }
 
-
-def detect_feature_dim(encoder: nn.Module, in_channels: int) -> int:
-    """
-    Dual-probe an toàn tuyệt đối:
-    Chiều nào giữ nguyên khi thay đổi chiều dài thời gian (128 vs 256) chính là feature_dim.
-    """
-    was_training = encoder.training
-    encoder.eval()
-    with torch.no_grad():
-        device = next(encoder.parameters()).device
-        out1 = encoder(torch.randn(2, in_channels, 128, device=device))
-        out2 = encoder(torch.randn(2, in_channels, 256, device=device))
-
-        if out1.dim() == 2:
-            detected = out1.size(1)
-        elif out1.dim() == 3:
-            # Chiều không đổi giữa out1 và out2 là feature dimension
-            if out1.size(1) == out2.size(1):
-                detected = out1.size(1)   # Format (B, D, L)
-            elif out1.size(-1) == out2.size(-1):
-                detected = out1.size(-1)  # Format (B, L, D)
-            else:
-                raise ValueError(f"Không thể xác định feature_dim giữa 2 probes: {out1.shape}, {out2.shape}")
-        else:
-            raise ValueError(f"Shape đầu ra không hợp lệ: {out1.shape}")
-
-    if was_training:
-        encoder.train()
-    return detected
+# Tham số SwAV
+FEATURE_DIM = 128
+PROJECTION_DIM = 64
+WARMUP_EPOCHS = 5
+WEIGHT_DECAY = 1e-4
+TAU_S = 0.1                    # Softmax temperature
+EPSILON = 0.05                 # Sinkhorn temperature
 
 
 def adjust_lr(optimizer, epoch, total_epochs, base_lr, warmup_epochs):
-    """Linear warmup + Cosine annealing."""
+    """Linear warmup + Cosine annealing scheduler."""
     if epoch <= warmup_epochs:
         lr = base_lr * epoch / max(1, warmup_epochs)
     else:
@@ -81,49 +101,45 @@ def adjust_lr(optimizer, epoch, total_epochs, base_lr, warmup_epochs):
 
 
 def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels: int, backbone_type: str):
-    print("\n" + "=" * 85)
-    print(f"🚀 PRETRAIN PROTOTYPE | DOMAIN: {domain_name.upper()} | BACKBONE: {backbone_type.upper()}")
-    print(f"📁 Data: {data_path} | K = {NUM_PROTOTYPES} | Device: {DEVICE}")
-    print("=" * 85)
-
-    # 1. Dataset & DataLoader (bắt buộc drop_last=True cho Sinkhorn)
-    dataset = ContrastiveDatasetWrapper(data_path)
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
-
-    # 2. Xây dựng Backbone & Dò feature_dim bằng dual-probe
-    backbone = build_encoder(backbone_type=backbone_type, in_channels=in_channels).to(DEVICE)
-    detected_dim = detect_feature_dim(backbone, in_channels=in_channels)
-    print(f"🧠 feature_dim xác thực = {detected_dim}")
-
-    # 3. Model & Loss (channel_last=False cố định cho cả 4 backbone)
-    model = PrototypicalHARModel(
-        encoder=backbone,
-        feature_dim=detected_dim,
-        projection_dim=64,
-        num_prototypes=NUM_PROTOTYPES,
-        temperature=TAU_S,
-        channel_last=False
-    ).to(DEVICE)
-
-    criterion = SwAVPrototypeLoss(epsilon=EPSILON).to(DEVICE)
-
-    # 4. Tách biệt hai optimizer: network vs prototypes
-    network_params = [p for n, p in model.named_parameters() if n != "prototypes"]
-    opt_network = torch.optim.AdamW(network_params, lr=BASE_LR, weight_decay=WEIGHT_DECAY)
-    opt_proto = torch.optim.AdamW([model.prototypes], lr=BASE_LR, weight_decay=WEIGHT_DECAY)
-
-    # 5. Đường dẫn checkpoint chuẩn hóa đồng bộ với pipeline downstream
     save_dir = PROJECT_ROOT / "checkpoints" / "ssl_pretrain" / "prototype" / domain_name / backbone_type
     save_dir.mkdir(parents=True, exist_ok=True)
     ckpt_path = save_dir / f"prototype_{backbone_type}_encoder_pretrained_{domain_name}.pt"
 
-    max_entropy = math.log(NUM_PROTOTYPES)
+    print(f"\n🚀 ĐANG PRETRAIN PROTOTYPE: {domain_name.upper()}")
+    print(f"📂 Dữ liệu: {data_path}")
+    print(f"🧠 Backbone: {backbone_type.upper()} | Feature Dim: {FEATURE_DIM} | Prototypes K: {args.num_prototypes}")
+    print(f"💾 Thư mục lưu: {save_dir}")
+    print("-" * 65)
+
+    # 1. Dataset & DataLoader (bắt buộc drop_last=True cho Sinkhorn-Knopp)
+    dataset = ContrastiveDatasetWrapper(data_path)
+    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+
+    # 2. Xây dựng Backbone & Mô hình Prototype
+    backbone = build_encoder(backbone_type=backbone_type, in_channels=in_channels).to(DEVICE)
+    model = PrototypicalHARModel(
+        encoder=backbone,
+        feature_dim=FEATURE_DIM,
+        projection_dim=PROJECTION_DIM,
+        num_prototypes=args.num_prototypes,
+        temperature=TAU_S
+    ).to(DEVICE)
+
+    criterion = SwAVPrototypeLoss(epsilon=EPSILON).to(DEVICE)
+
+    # 3. Tách biệt hai optimizer: network vs prototypes
+    network_params = [p for n, p in model.named_parameters() if n != "prototypes"]
+    opt_network = torch.optim.AdamW(network_params, lr=args.lr, weight_decay=WEIGHT_DECAY)
+    opt_proto = torch.optim.AdamW([model.prototypes], lr=args.lr, weight_decay=WEIGHT_DECAY)
+
+    max_entropy = math.log(args.num_prototypes)
     best_loss = float("inf")
 
-    for epoch in range(1, EPOCHS + 1):
+    # 4. Vòng lặp huấn luyện
+    for epoch in range(1, args.epochs + 1):
         model.train()
-        cur_lr = adjust_lr(opt_network, epoch, EPOCHS, BASE_LR, WARMUP_EPOCHS)
-        adjust_lr(opt_proto, epoch, EPOCHS, BASE_LR, WARMUP_EPOCHS)
+        cur_lr = adjust_lr(opt_network, epoch, args.epochs, args.lr, WARMUP_EPOCHS)
+        adjust_lr(opt_proto, epoch, args.epochs, args.lr, WARMUP_EPOCHS)
 
         total_loss, entropy_acc, n_batches = 0.0, 0.0, 0
 
@@ -138,11 +154,11 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
 
             loss.backward()
 
-            # Cập nhật song song cả network và prototype ngay từ epoch 1
+            # Cập nhật song song cả mạng và prototype ngay từ epoch 1
             opt_network.step()
             opt_proto.step()
 
-            # Giám sát Cluster Entropy
+            # Giám sát cluster entropy để phát hiện sụp cụm
             with torch.no_grad():
                 avg_q = q_w.mean(dim=0)
                 batch_entropy = -(avg_q * torch.log(avg_q + 1e-8)).sum().item()
@@ -154,47 +170,59 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
         avg_loss = total_loss / max(1, n_batches)
         avg_entropy = entropy_acc / max(1, n_batches)
 
-        # Cảnh báo nếu có nguy cơ sụp cụm
+        # Cảnh báo nếu entropy thấp (nguy cơ collapse)
         if avg_entropy < (0.3 * max_entropy):
-            print(f"⚠️  Cảnh báo: Entropy thấp ({avg_entropy:.2f}/{max_entropy:.2f}) tại epoch {epoch}")
+            print(f"⚠️  Cảnh báo sụp cụm: Entropy={avg_entropy:.2f} < {0.3*max_entropy:.2f} tại epoch {epoch}")
 
-        # Tiêu chuẩn lưu Checkpoint: Dựa trên Loss tốt nhất sau warmup
+        # Lưu checkpoint theo Loss tốt nhất sau warmup
         if epoch > WARMUP_EPOCHS and avg_loss < best_loss:
             best_loss = avg_loss
             torch.save(model.encoder.state_dict(), ckpt_path)
 
-        if epoch % 5 == 0 or epoch == 1 or epoch == EPOCHS:
+        if epoch % 5 == 0 or epoch == 1 or epoch == args.epochs:
             print(
-                f"Epoch [{epoch:02d}/{EPOCHS:02d}] | LR: {cur_lr:.2e} | "
+                f"Epoch [{epoch:02d}/{args.epochs:02d}] | LR: {cur_lr:.2e} | "
                 f"Loss: {avg_loss:.4f} (Best: {best_loss:.4f}) | "
                 f"Entropy: {avg_entropy:.2f}/{max_entropy:.2f}"
             )
 
-    # Fallback lưu epoch cuối nếu chưa lưu
+    # Fallback nếu chưa lưu được
     if not ckpt_path.exists():
         torch.save(model.encoder.state_dict(), ckpt_path)
-        print(f"⚠️ Fallback: Đã lưu checkpoint tại epoch cuối.")
+        print(f"   ⚠️ Fallback: Đã lưu checkpoint tại epoch cuối.")
 
-    print(f"💾 Checkpoint hoàn tất: {ckpt_path}")
+    print(f"   📁 Checkpoint : {ckpt_path}")
+    print(f"   📉 Best Loss  : {best_loss:.5f}")
+    print(f"   📊 Tổng số mẫu: {len(dataset):,}")
 
-    # Thu hồi VRAM
+    # Thu hồi bộ nhớ GPU
     del model, backbone, criterion, opt_network, opt_proto, loader, dataset
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
 
 def main():
-    total_runs = len(BACKBONE_TYPES) * len(DATASETS)
-    run_idx = 1
+    print("=" * 80)
+    print(f"🌟 BẮT ĐẦU PRETRAIN PROTOTYPE SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}")
+    print(f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size} | K: {args.num_prototypes}")
+    print("=" * 80)
 
-    for backbone in BACKBONE_TYPES:
-        for name in DATASETS:
-            print(f"\n[{run_idx}/{total_runs}] TIẾN TRÌNH: BACKBONE={backbone.upper()} | DATASET={name.upper()}")
-            path, in_channels = DATASET_MAP[name]
-            train_prototype_single_domain(name, path, in_channels, backbone_type=backbone)
-            run_idx += 1
+    for name in args.datasets:
+        if name not in DATASET_MAP:
+            print(f"⚠️ Bỏ qua dataset không hợp lệ: {name}")
+            continue
 
-    print("\n🎉 HOÀN TẤT HUẤN LUYỆN PROTOTYPE CHO TOÀN BỘ 4 BACKBONES TRÊN TẤT CẢ TẬP DỮ LIỆU!")
+        data_path, in_channels = DATASET_MAP[name]
+        train_prototype_single_domain(
+            domain_name=name,
+            data_path=data_path,
+            in_channels=in_channels,
+            backbone_type=args.backbone
+        )
+
+    print("\n" + "=" * 80)
+    print("🎉 HOÀN THÀNH PRETRAIN TẤT CẢ DATASET CHO PROTOTYPE!")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
