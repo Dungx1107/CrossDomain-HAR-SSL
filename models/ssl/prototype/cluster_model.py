@@ -48,10 +48,6 @@ class PrototypicalHARModel(nn.Module):
 
         # 2. Trường hợp encoder trả về tensor 3D
         if feat.dim() == 3:
-            # Nếu encoder có định dạng (B, L, D) -> hoán vị về (B, D, L) chuẩn Conv1d
-            if self.channel_last:
-                feat = feat.transpose(1, 2)
-
             # Global Average Pooling theo trục thời gian (L) -> (B, D, 1) -> (B, D)
             feat = self.pool(feat).flatten(1)
             return feat
