@@ -87,7 +87,6 @@ def main():
         / "ssl_pretrain"
         / "contrastive"
         / name
-        / args.backbone
     )
     save_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_name = f"tstcc_{args.backbone}_encoder_pretrained_{name}.pt"

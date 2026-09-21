@@ -19,7 +19,7 @@ IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 class MotionSenseConfig:
     # 2. ĐƯỜNG DẪN DỮ LIỆU & CHECKPOINT
     if IS_KAGGLE:
-        BASE_INPUT = Path("/kaggle/input/datasets/nguyendung009/HAR_data/processed")
+        BASE_INPUT = Path("/kaggle/input/datasets/nguyendung009/har-data/processed")
         PROCESSED_DIR = BASE_INPUT / "motionsense"
     else:
         RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "motion_sense"
