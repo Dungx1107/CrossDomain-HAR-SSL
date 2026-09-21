@@ -54,3 +54,20 @@ def build_encoder(
             f"❌ Không hỗ trợ backbone_type='{backbone_type}'. "
             f"Lựa chọn hợp lệ: ['standard', 'cnn_transformer', 'vit_1d']"
         )
+import torch
+if __name__ =="__main__":
+    for b in ["standard", "tstcc", "cnn_transformer", "vit_1d"]:
+        enc = build_encoder(b, in_channels=6)
+        with torch.no_grad():
+            out = enc(torch.randn(2, 6, 128))
+        print(f"Backbone: {b:<16} | Output Shape: {list(out.shape)}")
+
+        enc = build_encoder("vit_1d", in_channels=6)
+        enc.eval()
+
+        with torch.no_grad():
+            out1 = enc(torch.randn(2, 6, 128))  # L = 128
+            out2 = enc(torch.randn(2, 6, 256))  # L = 256 (gấp đôi)
+
+        print("Output với L=128:", list(out1.shape))
+        print("Output với L=256:", list(out2.shape))

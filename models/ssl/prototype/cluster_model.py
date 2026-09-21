@@ -41,9 +41,22 @@ class PrototypicalHARModel(nn.Module):
 
     def forward_backbone(self, x: torch.Tensor) -> torch.Tensor:
         feat = self.encoder(x)
+
+        # 1. Trường hợp encoder đã pool sẵn về dạng vector 2D (B, D)
+        if feat.dim() == 2:
+            return feat
+
+        # 2. Trường hợp encoder trả về tensor 3D
         if feat.dim() == 3:
+            # Nếu encoder có định dạng (B, L, D) -> hoán vị về (B, D, L) chuẩn Conv1d
+            if self.channel_last:
+                feat = feat.transpose(1, 2)
+
+            # Global Average Pooling theo trục thời gian (L) -> (B, D, 1) -> (B, D)
             feat = self.pool(feat).flatten(1)
-        return feat
+            return feat
+
+        raise ValueError(f"Tensor đầu ra của encoder có số chiều không hợp lệ: {feat.shape}")
 
     def forward(self, x_w: torch.Tensor, x_s: torch.Tensor):
         z_w = self.forward_backbone(x_w)

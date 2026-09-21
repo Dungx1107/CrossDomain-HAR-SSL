@@ -54,3 +54,33 @@ class SwAVPrototypeLoss(nn.Module):
         if return_q:
             return loss, q_w
         return loss
+
+if __name__ == "__main__":
+    # Test 1: Sinkhorn output là phân phối hợp lệ
+    B, K = 16, 45
+    scores = torch.randn(B, K) * 5.0  # scores ngẫu nhiên
+    Q = sinkhorn_knopp(scores, epsilon=0.05, niters=3)
+
+    print("Shape Q:", Q.shape)  # Phải là (16, 45)
+    print("Tổng mỗi hàng:", Q.sum(dim=1)[:5])  # Phải ≈ 1.0
+    print("Tổng mỗi cột:", Q.sum(dim=0)[:5])  # Phải ≈ B/K = 16/45 ≈ 0.356
+    print("Min/Max Q:", Q.min().item(), Q.max().item())  # Phải > 0
+
+    assert Q.shape == (B, K), "Shape sai"
+    assert torch.allclose(Q.sum(dim=1), torch.ones(B), atol=1e-3), "Hàng không tổng = 1"
+    assert (Q > 0).all(), "Có phần tử âm hoặc bằng 0"
+
+    # Test 2: Loss chạy được, backprop OK
+    criterion = SwAVPrototypeLoss(epsilon=0.05)
+    scores_w = torch.randn(B, K, requires_grad=True)
+    scores_s = torch.randn(B, K, requires_grad=True)
+    loss, q_w = criterion(scores_w, scores_s, return_q=True)
+
+    print("\nLoss:", loss.item())
+    print("q_w shape:", q_w.shape)
+
+    loss.backward()
+    print("Gradient scores_w tồn tại:", scores_w.grad is not None)
+    print("Gradient scores_s tồn tại:", scores_s.grad is not None)
+
+    print("\n✅ FILE 1 OK")
