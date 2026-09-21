@@ -17,16 +17,13 @@ IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 
 
 class MotionSenseConfig:
-
     # 2. ĐƯỜNG DẪN DỮ LIỆU & CHECKPOINT
     if IS_KAGGLE:
-        BASE_INPUT = Path("/kaggle/input")
-        PROCESSED_DIR = BASE_INPUT / "har-processed-data" / "motionsense"
-        CHECKPOINT_SSL_PRETRAINED_PATH = BASE_INPUT / "har-ssl-checkpoints-vault" / "tstcc_encoder_pretrained_motionsense.pt"
+        BASE_INPUT = Path("/kaggle/input/datasets/nguyendung009/HAR_data/processed")
+        PROCESSED_DIR = BASE_INPUT / "motionsense"
     else:
         RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "motion_sense"
         PROCESSED_DIR = PROJECT_ROOT / "data" / "processed" / "motionsense"
-        CHECKPOINT_SSL_PRETRAINED_PATH = PROJECT_ROOT / "checkpoints" / "tstcc_encoder_pretrained_motionsense.pt"
 
     # Đường dẫn file dữ liệu đã xử lý
     DATA_ALL_PATH = PROCESSED_DIR / "dataset_all.pt"

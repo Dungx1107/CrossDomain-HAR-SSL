@@ -27,6 +27,7 @@ class StandardSensorEncoder1D(nn.Module):
             feature_dim (int): Kích thước Vector đặc trưng đầu ra (default: 128)
         """
         super().__init__()
+        self.feature_dim = feature_dim
 
         # ---------------------------------------------------------------------
         # KHỐI 1: Trích xuất đặc trưng tần số thấp (Low-level local patterns)
@@ -55,8 +56,8 @@ class StandardSensorEncoder1D(nn.Module):
         # Input: (B, 64, 32) -> Output: (B, 128, 16)
         # ---------------------------------------------------------------------
         self.block3 = nn.Sequential(
-            nn.Conv1d(in_channels=64, out_channels=128, kernel_size=5, padding=2, bias=False),
-            nn.BatchNorm1d(128),
+            nn.Conv1d(in_channels=64, out_channels=96, kernel_size=5, padding=2, bias=False),
+            nn.BatchNorm1d(96),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(kernel_size=2, stride=2)  # Giảm độ dài chuỗi 32 -> 16
         )
@@ -66,23 +67,12 @@ class StandardSensorEncoder1D(nn.Module):
         # Input: (B, 128, 16) -> Output: (B, 256, 8)
         # ---------------------------------------------------------------------
         self.block4 = nn.Sequential(
-            nn.Conv1d(in_channels=128, out_channels=256, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm1d(256),
+            nn.Conv1d(in_channels=96, out_channels=feature_dim, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm1d(feature_dim),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(kernel_size=2, stride=2)  # Giảm độ dài chuỗi 16 -> 8
         )
 
-        # ---------------------------------------------------------------------
-        # KHỐI POOLING & NÉN ĐẦU RA (GLOBAL ADAPTIVE POOLING & PROJECTION)
-        # ---------------------------------------------------------------------
-        # AdaptiveAvgPool1d(1): Ép chiều thời gian còn lại (dù là 8 hay bao nhiêu) về đúng 1
-        self.global_pool = nn.AdaptiveAvgPool1d(1)
-
-        # Tước bỏ chiều thời gian thừa = 1 (Flatten)
-        self.flatten = nn.Flatten()
-
-        # Chiếu 256 kênh về kích thước Feature Vector chuẩn 128 chiều
-        self.projection = nn.Linear(256, feature_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -91,12 +81,7 @@ class StandardSensorEncoder1D(nn.Module):
         # x shape ban đầu: (B, in_channels, 128)
         x = self.block1(x)  # -> (B, 32, 64)
         x = self.block2(x)  # -> (B, 64, 32)
-        x = self.block3(x)  # -> (B, 128, 16)
-        x = self.block4(x)  # -> (B, 256, 8)
-
-        x = self.global_pool(x)  # -> (B, 256, 1)
-        x = self.flatten(x)  # -> (B, 256)
-        feature_vector = self.projection(x)  # -> (B, feature_dim) = (B, 128)
-
-        return feature_vector
+        x = self.block3(x)  # -> (B, 96, 16)
+        x = self.block4(x)  # -> (B, 128, 8)
+        return x
 

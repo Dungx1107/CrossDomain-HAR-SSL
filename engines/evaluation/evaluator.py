@@ -128,10 +128,9 @@ class ModelEvaluator:
         # lớp nào hay bị nhầm lẫn do vị trí cảm biến khác biệt (ví dụ Upstairs vs Downstairs)
         print("\n📋 BẢNG THỐNG KÊ CHI TIẾT TỪNG LỚP HÀNH ĐỘNG:")
 
-        # Chỉ lấy đúng số lượng nhãn và tên nhãn thực tế xuất hiện
-        num_classes_found = max(len(np.unique(y_true)), len(np.unique(y_pred)))
-        eval_labels = list(range(num_classes_found))
-        eval_target_names = self.class_names[:num_classes_found]
+        # Luôn cố định đánh giá trên toàn bộ danh sách nhãn đã định nghĩa
+        eval_labels = list(range(len(self.class_names)))
+        eval_target_names = self.class_names
 
         print(classification_report(
             y_true,

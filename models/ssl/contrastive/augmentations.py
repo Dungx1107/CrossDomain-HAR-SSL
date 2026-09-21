@@ -1,81 +1,120 @@
 """
-Module cung cấp các thuật toán biến đổi tín hiệu chuỗi thời gian (Time-Series
-Data Augmentation) và bọc dữ liệu (Dataset Wrapper) phục vụ cho quá trình
-huấn luyện Tự giám sát (Self-Supervised Learning - SSL) theo chuẩn TS-TCC.
+===============================================================================
+MODULE: TIME-SERIES DATA AUGMENTATION CHO TS-TCC
+===============================================================================
+Mã nguồn đối chiếu trực tiếp từ file `augmentations.py` của repository chính thức:
+    emadeldeen24/TS-TCC (IJCAI 2021)
+===============================================================================
 """
+
 import numpy as np
 import torch
-from scipy.interpolate import CubicSpline
 
 
-def jitter(x, sigma=0.05):
-    """Thêm nhiễu trắng Gaussian vào tín hiệu."""
+def jitter(x: np.ndarray, sigma: float = 0.8) -> np.ndarray:
+    """
+    Thêm nhiễu trắng Gaussian vào tín hiệu theo chuẩn TS-TCC gốc (sigma=0.8).
+    """
     noise = np.random.normal(loc=0.0, scale=sigma, size=x.shape)
     return x + noise
 
 
-def scaling(x, sigma=0.1):
-    """Nhân toàn bộ kênh tín hiệu với hệ số co giãn biên độ ngẫu nhiên."""
-    factor = np.random.normal(loc=1.0, scale=sigma, size=(x.shape[0], 1))
-    return x * factor
+def scaling(x: np.ndarray, sigma: float = 1.1) -> np.ndarray:
+    """
+    Co giãn biên độ tín hiệu với loc=2.0 và sigma=1.1 theo chuẩn TS-TCC gốc.
+    Nhận tensor (C, T) hoặc (B, C, T).
+    """
+    is_2d = (x.ndim == 2)
+    if is_2d:
+        x = x[np.newaxis, ...]  # (1, C, T)
 
+    B, C, T = x.shape
+    factor = np.random.normal(loc=2.0, scale=sigma, size=(B, T))
 
-def time_warp(x, sigma=0.2, num_knots=4):
-    """Uốn cong trục thời gian cục bộ bằng Cubic Spline."""
-    C, T = x.shape
-    time_orig = np.arange(T)
-    knot_positions = np.linspace(0, T - 1, num=num_knots + 2)
-    random_shifts = np.random.normal(loc=1.0, scale=sigma, size=(num_knots + 2,))
-    warped_knot_positions = knot_positions * random_shifts
+    # factor shape (B, 1, T) nhân dọc theo channels C
+    scaled_x = x * factor[:, np.newaxis, :]
 
-    warped_knot_positions = (warped_knot_positions - warped_knot_positions[0]) / (
-            warped_knot_positions[-1] - warped_knot_positions[0]
-    ) * (T - 1)
+    if is_2d:
+        scaled_x = scaled_x.squeeze(0)
 
-    spline = CubicSpline(knot_positions, warped_knot_positions)
-    warped_time = np.clip(spline(time_orig), 0, T - 1)
+    return scaled_x
 
-    x_warped = np.zeros_like(x)
-    for c in range(C):
-        x_warped[c] = np.interp(time_orig, warped_time, x[c])
-    return x_warped
+def permutation(x: np.ndarray, max_segments: int = 5, seg_mode: str = "random") -> np.ndarray:
+    """
+    Hoán vị trật tự các đoạn thời gian.
+    Áp dụng đồng bộ cho TẤT CẢ các kênh cảm biến.
+    Giả định x có layout (C, T) hoặc (B, C, T).
+    """
+    is_2d = (x.ndim == 2)
+    if is_2d:
+        x = x[np.newaxis, ...]  # (1, C, T)
 
+    B, C, T = x.shape
+    orig_steps = np.arange(T)
+    num_segs = np.random.randint(1, max_segments + 1, size=B)
+    ret = np.zeros_like(x)
 
-# =============================================================================
-# BỘ PHỐI HỢP WEAK & STRONG AUGMENTATION
-# =============================================================================
+    for i in range(B):
+        if num_segs[i] > 1:
+            if seg_mode == "random":
+                n_splits = min(num_segs[i] - 1, T - 2)
+                if n_splits > 0:
+                    split_points = np.random.choice(T - 2, n_splits, replace=False)
+                    split_points.sort()
+                    splits = np.split(orig_steps, split_points)
+                else:
+                    splits = [orig_steps]
+            else:
+                splits = np.array_split(orig_steps, num_segs[i])
+
+            # Xáo trộn thứ tự các đoạn
+            perm_order = np.random.permutation(len(splits))
+            shuffled_splits = [splits[k] for k in perm_order]
+            warp = np.concatenate(shuffled_splits).ravel()
+
+            # Dùng np.take để tránh advanced-indexing đảo trục
+            ret[i] = np.take(x[i], warp, axis=-1)
+        else:
+            ret[i] = x[i]
+
+    if is_2d:
+        ret = ret.squeeze(0)
+
+    return ret
+
 class TS_TCC_Augmentation:
-    """
-    Bộ tạo 2 views (Weak view và Strong view) theo chuẩn TS-TCC.
-    """
+    def __init__(
+        self,
+        jitter_scale_ratio: float = 1.1,
+        jitter_ratio: float = 0.8,
+        max_seg: int = 5
+    ):
+        self.jitter_scale_ratio = jitter_scale_ratio
+        self.jitter_ratio = jitter_ratio
+        self.max_seg = max_seg
 
-    def __init__(self,
-                 jitter_sigma=0.03,
-                 scale_sigma=0.05,
-                 warp_sigma=0.1,
-                 ):
-        self.jitter_sigma = jitter_sigma
-        self.scale_sigma = scale_sigma
-        self.warp_sigma = warp_sigma
+    def weak_transform(self, x: np.ndarray) -> np.ndarray:
+        return scaling(x, sigma=self.jitter_scale_ratio)
 
-    def weak_transform(self, x):
-        """View yếu: Kết hợp Scaling và Jittering nhẹ."""
-        x_aug = scaling(x, sigma=self.scale_sigma)
-        x_aug = jitter(x_aug, sigma=self.jitter_sigma)
-        return x_aug
-
-    def strong_transform(self, x):
-        return jitter(time_warp(x, sigma=self.warp_sigma), sigma=self.jitter_sigma * 1.5)
+    def strong_transform(self, x: np.ndarray) -> np.ndarray:
+        x_perm = permutation(x, max_segments=self.max_seg)
+        x_strong = jitter(x_perm, sigma=self.jitter_ratio)
+        return x_strong
 
     def __call__(self, x):
-        """
-        Nhận vào mảng numpy (C, T) và trả về 2 views dạng PyTorch Tensor.
-        """
-        x_numpy = x.cpu().numpy() if isinstance(x, torch.Tensor) else x
+        if isinstance(x, torch.Tensor):
+            x_numpy = x.detach().cpu().numpy()
+        else:
+            x_numpy = np.array(x)
+
+        # Đảm bảo nếu đưa vào (T, C) = (128, 6) thì đảo thành (6, 128)
+        if x_numpy.ndim == 2 and x_numpy.shape[0] == 128 and x_numpy.shape[1] == 6:
+            x_numpy = x_numpy.T
+
         x_w = self.weak_transform(x_numpy.copy())
         x_s = self.strong_transform(x_numpy.copy())
 
         return (
-            torch.tensor(x_w, dtype=torch.float32),
-            torch.tensor(x_s, dtype=torch.float32)
+            torch.from_numpy(x_w).float(),
+            torch.from_numpy(x_s).float()
         )

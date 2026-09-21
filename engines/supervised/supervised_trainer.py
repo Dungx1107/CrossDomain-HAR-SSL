@@ -1,321 +1,319 @@
 """
 ===============================================================================
-MODULE: SUPERVISED TRAINER ENGINE
+ENGINE: CONTRASTIVE PRETRAINING TRAINER CHO TS-TCC
 ===============================================================================
-VAI TRÒ TRONG HỆ THỐNG:
-    - Điều phối toàn bộ quy trình huấn luyện học có giám sát (Supervised Learning).
-    - Phục vụ xây dựng mô hình cơ sở (Baseline) huấn luyện từ đầu (Train from Scratch)
-      để đối chiếu hiệu năng trực tiếp với giải pháp Học tự giám sát (SSL).
-
-NHIỆM VỤ CHÍNH:
-    1. Quản lý vòng lặp epoch (Forward pass, Backward pass, cập nhật trọng số).
-    2. Đánh giá tính tổng quát hóa trên tập Validation sau mỗi epoch.
-    3. Triển khai cơ chế Model Checkpointing: Chỉ lưu lại trọng số có Macro F1 cao nhất,
-       tránh hiện tượng Overfitting khi kết thúc huấn luyện.
-    4. Điều chỉnh tốc độ học (Learning Rate Scheduler) dựa trên phản hồi của tập Val.
-
-ĐẦU VÀO / ĐẦU RA:
-    - Đầu vào: Mô hình HARClassifier, DataLoaders (Train, Val) shape (B, 6, 128).
-    - Đầu ra: Mô hình tối ưu nhất nạp lại từ checkpoint tốt nhất, file trọng số .pt.
+Tính năng chuẩn hóa:
+    1. Full-pipeline Resume: Tự động hoặc chủ động nạp lại checkpoint (model,
+       optimizer, scheduler, start_epoch, best_score), tiếp tục ghi log đúng cột.
+    2. Online Linear Probing: Định kỳ đánh giá chất lượng biểu diễn đặc trưng
+       trên downstream validation set, lấy Macro F1-score để lưu best_model.pt.
+    3. Gradient Monitoring: Theo dõi chuẩn Gradient thực tế trước khi cắt (clip).
+    4. Guard checks an toàn chống chia cho 0.
 ===============================================================================
 """
 
 import os
-import sys
-from pathlib import Path
+import csv
 import torch
 import torch.nn as nn
-from sklearn.metrics import accuracy_score, f1_score
-
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+from typing import Dict, Any, Optional
+from sklearn.metrics import f1_score
 
 
-class SupervisedTrainer:
+class ContrastiveTrainer:
     def __init__(
-            self,
-            model: nn.Module,
-            optimizer: torch.optim.Optimizer,
-            criterion: nn.Module,
-            device: torch.device,
-            checkpoint_dir: str = "",
-            scheduler=None,
+        self,
+        model: nn.Module,
+        train_loader: DataLoader,
+        val_loader: Optional[DataLoader] = None,
+        probe_train_loader: Optional[DataLoader] = None,
+        probe_val_loader: Optional[DataLoader] = None,
+        num_classes: Optional[int] = None,
+        optimizer: Optional[torch.optim.Optimizer] = None,
+        scheduler: Optional[Any] = None,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        epochs: int = 100,
+        checkpoint_dir: str = "./checkpoints/ssl_pretrain",
+        log_interval: int = 10,
+        probe_interval: int = 10,
+        max_grad_norm: float = 2.0,
+        resume_from: Optional[str] = None
     ):
-        self.model = model
-        self.optimizer = optimizer
-        self.criterion = criterion
+        self.model = model.to(device)
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.probe_train_loader = probe_train_loader
+        self.probe_val_loader = probe_val_loader
+        self.num_classes = num_classes
         self.device = device
+        self.epochs = epochs
         self.checkpoint_dir = checkpoint_dir
-        self.scheduler = scheduler
-        self.best_val_f1 = -1.0
-        self.best_model_state = None
+        self.log_interval = log_interval
+        self.probe_interval = probe_interval
+        self.max_grad_norm = max_grad_norm
 
-        if self.checkpoint_dir:
-            os.makedirs(self.checkpoint_dir, exist_ok=True)
-
-    def train_one_epoch(self, dataloader):
-        self.model.train()
-        total_loss = 0.0
-        all_preds, all_targets = [], []
-
-        for x_batch, y_batch in dataloader:
-            x_batch = x_batch.to(self.device)
-            y_batch = y_batch.to(self.device)
-
-            self.optimizer.zero_grad()
-            logits = self.model(x_batch)
-            loss = self.criterion(logits, y_batch)
-            loss.backward()
-            self.optimizer.step()
-
-            total_loss += loss.item() * len(y_batch)
-            preds = torch.argmax(logits, dim=1)
-
-            all_preds.extend(preds.cpu().numpy())
-            all_targets.extend(y_batch.cpu().numpy())
-
-        epoch_loss = total_loss / len(dataloader.dataset)
-        epoch_acc = accuracy_score(all_targets, all_preds)
-        epoch_f1 = f1_score(all_targets, all_preds, average="macro")
-        return epoch_loss, epoch_acc, epoch_f1
-
-    def evaluate(self, dataloader):
-        self.model.eval()
-        total_loss = 0.0
-        all_preds, all_targets = [], []
-
-        with torch.no_grad():
-            for x_batch, y_batch in dataloader:
-                x_batch = x_batch.to(self.device)
-                y_batch = y_batch.to(self.device)
-
-                logits = self.model(x_batch)
-                loss = self.criterion(logits, y_batch)
-
-                total_loss += loss.item() * len(y_batch)
-                preds = torch.argmax(logits, dim=1)
-
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
-
-        eval_loss = total_loss / len(dataloader.dataset)
-        eval_acc = accuracy_score(all_targets, all_preds)
-        eval_f1 = f1_score(all_targets, all_preds, average="macro")
-        return eval_loss, eval_acc, eval_f1
-
-    def fit(self,
-            train_loader,
-            val_loader,
-            epochs: int,
-            model_name: str = "best_model.pt"):
-        print(f"🚀 Bắt đầu huấn luyện Supervised ({epochs} epochs)...")
-        for epoch in range(1, epochs + 1):
-            train_loss, train_acc, train_f1 = self.train_one_epoch(train_loader)
-            val_loss, val_acc, val_f1 = self.evaluate(val_loader)
-
-            if self.scheduler is not None:
-                self.scheduler.step(val_f1)
-
-            # Lưu trọng số tốt nhất theo Macro F1
-            if val_f1 > self.best_val_f1:
-                self.best_val_f1 = val_f1
-                self.best_model_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
-                if self.checkpoint_dir:
-                    torch.save(self.best_model_state, os.path.join(self.checkpoint_dir, model_name))
-
-            if epoch % 5 == 0 or epoch == 1 or epoch == epochs:
-                print(
-                    f"Epoch [{epoch:03d}/{epochs:03d}] | Train Loss: {train_loss:.4f} Acc: {train_acc * 100:.2f}% | Val Loss: {val_loss:.4f} Acc: {val_acc * 100:.2f}% F1: {val_f1 * 100:.2f}%")
-
-        # Nạp lại trọng số tốt nhất cho model
-        if self.best_model_state is not None:
-            self.model.load_state_dict({k: v.to(self.device) for k, v in self.best_model_state.items()})
-        return self.model
-
-    '''
-import os
-import sys
-from pathlib import Path
-import torch
-import torch.nn as nn
-from sklearn.metrics import accuracy_score, f1_score
-
-# Tự động nhận diện thư mục gốc để đảm bảo import đúng module từ mọi vị trí thực thi
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-
-class SupervisedTrainer:
-    """
-    Bộ điều phối huấn luyện và kiểm thử mô hình có giám sát chuẩn mực cho bài toán HAR.
-    """
-
-    def __init__(
-            self,
-            model: nn.Module,
-            optimizer: torch.optim.Optimizer,
-            criterion: nn.Module,
-            device: torch.device,
-            checkpoint_dir: str = "",
-            scheduler=None,
-    ):
-        """
-        Khởi tạo Engine huấn luyện.
-
-        Tham số:
-            model (nn.Module): Mạng nơ-ron cần huấn luyện (thường là HARClassifier).
-            optimizer (torch.optim.Optimizer): Thuật toán tối ưu (Adam, AdamW...).
-            criterion (nn.Module): Hàm mất mát (thường là nn.CrossEntropyLoss).
-            device (torch.device): Phần cứng tính toán ('cuda' hoặc 'cpu').
-            checkpoint_dir (str, optional): Thư mục lưu file trọng số .pt tốt nhất.
-            scheduler (optional): Bộ điều chỉnh Learning Rate theo epoch (ví dụ ReduceLROnPlateau).
-        """
-        self.model = model
-        self.optimizer = optimizer
-        self.criterion = criterion
-        self.device = device
-        self.checkpoint_dir = checkpoint_dir
+        self.optimizer = optimizer if optimizer is not None else torch.optim.Adam(
+            self.model.parameters(), lr=3e-4, betas=(0.9, 0.99), weight_decay=3e-4
+        )
         self.scheduler = scheduler
 
-        # Biến theo dõi kỷ lục Validation Macro F1 để lưu mô hình tốt nhất
-        self.best_val_f1 = -1.0
-        self.best_model_state = None
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self.history_csv = os.path.join(self.checkpoint_dir, "loss_history.csv")
 
-        if self.checkpoint_dir:
-            os.makedirs(self.checkpoint_dir, exist_ok=True)
+        # Trạng thái ban đầu phục vụ Resume
+        self.start_epoch = 1
+        self.best_probe_f1 = -1.0
+        self.best_loss = float("inf")
 
-    def train_one_epoch(self, dataloader):
-        """
-        Thực thi 1 epoch huấn luyện (cập nhật Gradient trên từng Batch).
+        # Nạp trạng thái nếu có yêu cầu Resume
+        if resume_from:
+            self._load_checkpoint(resume_from)
+        else:
+            self._init_csv(overwrite=True)
 
-        Tham số:
-            dataloader (DataLoader): DataLoader chứa dữ liệu tập Train.
+    def _init_csv(self, overwrite: bool = True):
+        mode = "w" if overwrite else "a"
+        with open(self.history_csv, mode=mode, newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            header = ["epoch", "train_loss_total", "train_loss_tc", "train_loss_cc", "grad_norm"]
+            if self.val_loader is not None:
+                header.extend(["val_loss_total", "val_loss_tc", "val_loss_cc"])
+            if self.probe_val_loader is not None:
+                header.extend(["probe_f1", "probe_acc"])
+            header.append("lr")
+            writer.writerow(header)
 
-        Trả về:
-            tuple: (epoch_loss, epoch_accuracy, epoch_macro_f1)
-        """
-        # Chuyển mô hình sang chế độ huấn luyện (bật Dropout, cập nhật BatchNorm chạy)
+    def _load_checkpoint(self, checkpoint_path: str):
+        if not os.path.isfile(checkpoint_path):
+            raise FileNotFoundError(f"❌ Không tìm thấy checkpoint tại: {checkpoint_path}")
+
+        print(f"🔄 Đang nạp checkpoint từ: {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        if "optimizer_state_dict" in checkpoint and self.optimizer:
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if "scheduler_state_dict" in checkpoint and self.scheduler:
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        self.start_epoch = checkpoint.get("epoch", 0) + 1
+        self.best_loss = checkpoint.get("loss", float("inf"))
+        self.best_probe_f1 = checkpoint.get("probe_f1", -1.0)
+
+        print(f"   Khôi phục thành công! Tiếp tục từ Epoch {self.start_epoch} (Best F1: {self.best_probe_f1:.4f})")
+
+        # Khởi tạo CSV dạng nối tiếp
+        if not os.path.exists(self.history_csv):
+            self._init_csv(overwrite=True)
+
+    def train_one_epoch(self, epoch: int) -> Dict[str, float]:
         self.model.train()
-        total_loss = 0.0
-        all_preds, all_targets = [], []
+        total_loss, total_tc, total_cc, total_norm = 0.0, 0.0, 0.0, 0.0
+        num_batches = max(1, len(self.train_loader))
 
-        for x_batch, y_batch in dataloader:
-            # Chuyển tensor sang GPU/CPU tương ứng: x_batch (B, 6, 128), y_batch (B,)
-            x_batch = x_batch.to(self.device)
-            y_batch = y_batch.to(self.device)
+        pbar = tqdm(self.train_loader, desc=f"Epoch [{epoch}/{self.epochs}]", leave=False)
+        for batch in pbar:
+            if not isinstance(batch, (tuple, list)) or len(batch) < 2:
+                raise ValueError("Batch đầu vào phải gồm ít nhất 2 views: (x_weak, x_strong).")
 
-            # Xóa gradient tích lũy từ bước trước
+            x_weak = batch[0].to(self.device, non_blocking=True)
+            x_strong = batch[1].to(self.device, non_blocking=True)
+
             self.optimizer.zero_grad()
 
-            # Lan truyền tiến (Forward): Tính xác suất thô (Logits) shape (B, Num_Classes)
-            logits = self.model(x_batch)
-
-            # Tính hàm mất mát Cross Entropy
-            loss = self.criterion(logits, y_batch)
-
-            # Lan truyền ngược (Backward): Tính đạo hàm riêng cho từng tham số
+            loss, loss_tc, loss_cc = self.model(x_weak, x_strong)
             loss.backward()
 
-            # Cập nhật trọng số mạng theo hướng giảm dốc sai số
+            # Giám sát và Clip Gradient Norm
+            grad_norm = nn.utils.clip_grad_norm_(
+                self.model.parameters(), max_norm=self.max_grad_norm
+            ).item() if self.max_grad_norm > 0 else 0.0
+
             self.optimizer.step()
 
-            # Tích lũy mất mát theo kích thước mẫu thực tế (tránh sai số do batch cuối bị lẻ)
-            total_loss += loss.item() * len(y_batch)
+            total_loss += loss.item()
+            total_tc += loss_tc.item()
+            total_cc += loss_cc.item()
+            total_norm += grad_norm
 
-            # Dự đoán lớp có xác suất cao nhất (argmax theo chiều nhãn)
-            preds = torch.argmax(logits, dim=1)
+            pbar.set_postfix({
+                "Loss": f"{loss.item():.4f}",
+                "TC": f"{loss_tc.item():.4f}",
+                "CC": f"{loss_cc.item():.4f}",
+                "|g|": f"{grad_norm:.2f}"
+            })
 
-            # Thu thập nhãn để tính chỉ số thống kê của toàn bộ epoch
-            all_preds.extend(preds.cpu().numpy())
-            all_targets.extend(y_batch.cpu().numpy())
+        return {
+            "train_loss_total": total_loss / num_batches,
+            "train_loss_tc": total_tc / num_batches,
+            "train_loss_cc": total_cc / num_batches,
+            "grad_norm": total_norm / num_batches
+        }
 
-        epoch_loss = total_loss / len(dataloader.dataset)
-        epoch_acc = accuracy_score(all_targets, all_preds)
-        epoch_f1 = f1_score(all_targets, all_preds, average="macro")
-        return epoch_loss, epoch_acc, epoch_f1
-
-    def evaluate(self, dataloader):
-        """
-        Đánh giá hiệu năng mô hình trên một tập dữ liệu bất kỳ mà không cập nhật trọng số.
-
-        Tham số:
-            dataloader (DataLoader): Dữ liệu đánh giá (Val hoặc Test).
-
-        Trả về:
-            tuple: (eval_loss, eval_accuracy, eval_macro_f1)
-        """
-        # Chuyển mô hình sang chế độ suy luận (tắt Dropout, cố định mean/std của BatchNorm)
+    @torch.no_grad()
+    def evaluate_contrastive(self) -> Dict[str, float]:
         self.model.eval()
-        total_loss = 0.0
+        total_loss, total_tc, total_cc = 0.0, 0.0, 0.0
+        num_batches = max(1, len(self.val_loader))
+
+        for batch in self.val_loader:
+            x_weak = batch[0].to(self.device, non_blocking=True)
+            x_strong = batch[1].to(self.device, non_blocking=True)
+
+            loss, loss_tc, loss_cc = self.model(x_weak, x_strong)
+
+            total_loss += loss.item()
+            total_tc += loss_tc.item()
+            total_cc += loss_cc.item()
+
+        return {
+            "val_loss_total": total_loss / num_batches,
+            "val_loss_tc": total_tc / num_batches,
+            "val_loss_cc": total_cc / num_batches
+        }
+
+    def run_linear_probe(self, probe_epochs: int = 5) -> Dict[str, float]:
+        """
+        Đánh giá chất lượng biểu diễn thực tế:
+        Đóng băng Encoder, train 1 lớp Linear duy nhất trong vài epoch ngắn trên tập có nhãn.
+        """
+        if not (self.probe_train_loader and self.probe_val_loader and self.num_classes):
+            return {}
+
+        self.model.eval()
+        feature_dim = self.model.encoder.feature_dim if hasattr(self.model.encoder, "feature_dim") else 128
+        classifier = nn.Linear(feature_dim, self.num_classes).to(self.device)
+        probe_optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
+        criterion = nn.CrossEntropyLoss()
+
+        # Huấn luyện nhanh Classifier trên Frozen Encoder
+        for _ in range(probe_epochs):
+            classifier.train()
+            for x, y in self.probe_train_loader:
+                x, y = x.to(self.device), y.to(self.device)
+                with torch.no_grad():
+                    feats = self.model.encoder(x)
+                    if feats.dim() == 3:
+                        feats = feats.mean(dim=-1)
+
+                probe_optimizer.zero_grad()
+                out = classifier(feats)
+                loss = criterion(out, y)
+                loss.backward()
+                probe_optimizer.step()
+
+        # Đánh giá trên Validation Set
+        classifier.eval()
         all_preds, all_targets = [], []
-
-        # Tắt bộ theo dõi gradient để tiết kiệm VRAM và tăng tốc độ tính toán
         with torch.no_grad():
-            for x_batch, y_batch in dataloader:
-                x_batch = x_batch.to(self.device)
-                y_batch = y_batch.to(self.device)
-
-                logits = self.model(x_batch)
-                loss = self.criterion(logits, y_batch)
-
-                total_loss += loss.item() * len(y_batch)
-                preds = torch.argmax(logits, dim=1)
-
+            for x, y in self.probe_val_loader:
+                x, y = x.to(self.device), y.to(self.device)
+                feats = self.model.encoder(x)
+                if feats.dim() == 3:
+                    feats = feats.mean(dim=-1)
+                preds = classifier(feats).argmax(dim=-1)
                 all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
+                all_targets.extend(y.cpu().numpy())
 
-        eval_loss = total_loss / len(dataloader.dataset)
-        eval_acc = accuracy_score(all_targets, all_preds)
-        eval_f1 = f1_score(all_targets, all_preds, average="macro")
-        return eval_loss, eval_acc, eval_f1
+        f1 = f1_score(all_targets, all_preds, average="macro", zero_division=0)
+        acc = (torch.tensor(all_preds) == torch.tensor(all_targets)).float().mean().item()
 
-    def fit(self, train_loader, val_loader, epochs: int, model_name: str = "best_model.pt"):
-        """
-        Thực thi toàn bộ quy trình huấn luyện đa epoch kèm theo dõi và lưu checkpoint.
+        return {"probe_f1": f1, "probe_acc": acc}
 
-        Tham số:
-            train_loader (DataLoader): Nạp dữ liệu tập Train.
-            val_loader (DataLoader): Nạp dữ liệu tập Validation.
-            epochs (int): Tổng số vòng lặp huấn luyện.
-            model_name (str): Tên file lưu trọng số tối ưu.
+    def train(self):
+        print(f"\n🚀 BẮT ĐẦU TIỀN HUẤN LUYỆN TS-TCC")
+        print(f"   - Epochs: {self.start_epoch} -> {self.epochs}")
+        print(f"   - Thiết bị: {self.device}")
+        print(f"   - Checkpoint Directory: {self.checkpoint_dir}\n" + "-" * 75)
 
-        Trả về:
-            nn.Module: Mô hình đã được nạp lại bộ trọng số tốt nhất trong lịch sử huấn luyện.
-        """
-        print(f"🚀 Bắt đầu huấn luyện Supervised ({epochs} epochs)...")
-        for epoch in range(1, epochs + 1):
-            train_loss, train_acc, train_f1 = self.train_one_epoch(train_loader)
-            val_loss, val_acc, val_f1 = self.evaluate(val_loader)
+        for epoch in range(self.start_epoch, self.epochs + 1):
+            train_metrics = self.train_one_epoch(epoch)
+            val_metrics = self.evaluate_contrastive() if self.val_loader else {}
 
-            # Cập nhật Learning Rate nếu dùng Scheduler
-            if self.scheduler is not None:
-                self.scheduler.step(val_f1)
+            # Chạy Linear Probe định kỳ để đo chất lượng biểu diễn thực tế
+            probe_metrics = {}
+            if (epoch % self.probe_interval == 0 or epoch == self.epochs) and self.probe_train_loader:
+                probe_metrics = self.run_linear_probe()
 
-            # Cơ chế chọn lọc tự nhiên (Best Model Selection):
-            # So sánh Macro F1 của tập Val (thước đo khách quan khi tập dữ liệu mất cân bằng nhãn)
-            if val_f1 > self.best_val_f1:
-                self.best_val_f1 = val_f1
-                # Sao chép bản sao trọng số an toàn lên CPU
-                self.best_model_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
-                if self.checkpoint_dir:
-                    save_full_path = os.path.join(self.checkpoint_dir, model_name)
-                    torch.save(self.best_model_state, save_full_path)
+            # Scheduler update
+            current_lr = self.optimizer.param_groups[0]["lr"]
+            if self.scheduler:
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    # Nếu có probe_f1 thì tối ưu theo probe_f1, nếu không theo loss
+                    metric = probe_metrics.get("probe_f1", val_metrics.get("val_loss_total", train_metrics["train_loss_total"]))
+                    self.scheduler.step(metric)
+                else:
+                    self.scheduler.step()
 
-            if epoch % 5 == 0 or epoch == 1 or epoch == epochs:
-                print(
-                    f"Epoch [{epoch:03d}/{epochs:03d}] | "
-                    f"Train Loss: {train_loss:.4f} Acc: {train_acc*100:.2f}% | "
-                    f"Val Loss: {val_loss:.4f} Acc: {val_acc*100:.2f}% F1: {val_f1*100:.2f}%"
+            # Ghi nhật ký CSV an toàn
+            row = [
+                epoch,
+                f"{train_metrics['train_loss_total']:.6f}",
+                f"{train_metrics['train_loss_tc']:.6f}",
+                f"{train_metrics['train_loss_cc']:.6f}",
+                f"{train_metrics['grad_norm']:.4f}"
+            ]
+            if self.val_loader:
+                row.extend([
+                    f"{val_metrics['val_loss_total']:.6f}",
+                    f"{val_metrics['val_loss_tc']:.6f}",
+                    f"{val_metrics['val_loss_cc']:.6f}"
+                ])
+            if self.probe_val_loader:
+                row.extend([
+                    f"{probe_metrics.get('probe_f1', 0.0):.4f}",
+                    f"{probe_metrics.get('probe_acc', 0.0):.4f}"
+                ])
+            row.append(f"{current_lr:.8f}")
+
+            with open(self.history_csv, mode="a", newline="", encoding="utf-8") as f:
+                csv.writer(f).writerow(row)
+
+            # In thông tin theo dõi
+            if epoch % self.log_interval == 0 or epoch == self.epochs:
+                msg = (
+                    f"Epoch [{epoch:03d}/{self.epochs:03d}] | "
+                    f"Train Loss: {train_metrics['train_loss_total']:.4f} "
+                    f"(TC: {train_metrics['train_loss_tc']:.4f}, CC: {train_metrics['train_loss_cc']:.4f}, |g|: {train_metrics['grad_norm']:.2f})"
                 )
+                if probe_metrics:
+                    msg += f" | Probe F1: {probe_metrics['probe_f1']:.4f}"
+                msg += f" | LR: {current_lr:.6f}"
+                print(msg)
 
-        # Sau khi train xong, nạp lại đúng thời điểm phong độ cao nhất cho model trước khi trả về
-        if self.best_model_state is not None:
-            self.model.load_state_dict({k: v.to(self.device) for k, v in self.best_model_state.items()})
-            print(f"🎯 Đã nạp lại trọng số tốt nhất đạt Val Macro F1: {self.best_val_f1*100:.2f}%")
+            # Lựa chọn và lưu Checkpoint tốt nhất (Best Model)
+            if probe_metrics:
+                # Tiêu chuẩn vàng: Chọn best theo năng lực phân loại thực tế
+                if probe_metrics["probe_f1"] > self.best_probe_f1:
+                    self.best_probe_f1 = probe_metrics["probe_f1"]
+                    self.save_checkpoint("best_model.pt", epoch, train_metrics["train_loss_total"], probe_metrics["probe_f1"], full_state=False)
+            else:
+                # Dự phòng nếu không có probe set: chọn theo contrastive loss
+                target_loss = val_metrics.get("val_loss_total", train_metrics["train_loss_total"])
+                if target_loss < self.best_loss:
+                    self.best_loss = target_loss
+                    self.save_checkpoint("best_model.pt", epoch, target_loss, full_state=False)
 
-        return self.model
-    '''
+            # Luôn cập nhật last_checkpoint để sẵn sàng Resume bất cứ lúc nào
+            self.save_checkpoint("last_checkpoint.pt", epoch, train_metrics["train_loss_total"], probe_metrics.get("probe_f1", 0.0), full_state=True)
+
+        print("-" * 75)
+        print(f"✅ HOÀN TẤT. Weights tốt nhất lưu tại: {self.checkpoint_dir}")
+
+    def save_checkpoint(self, filename: str, epoch: int, loss: float, probe_f1: float = 0.0, full_state: bool = False):
+        filepath = os.path.join(self.checkpoint_dir, filename)
+        data = {
+            "epoch": epoch,
+            "loss": loss,
+            "probe_f1": probe_f1,
+            "model_state_dict": self.model.state_dict(),
+            "encoder_state_dict": self.model.encoder.state_dict(),
+        }
+        if full_state:
+            data["optimizer_state_dict"] = self.optimizer.state_dict()
+            if self.scheduler:
+                data["scheduler_state_dict"] = self.scheduler.state_dict()
+
+        torch.save(data, filepath)

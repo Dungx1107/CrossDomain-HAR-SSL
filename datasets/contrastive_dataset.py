@@ -98,3 +98,5 @@ class ContrastiveDatasetWrapper(Dataset):
         """
         x_raw = self.samples[idx]  # Lấy mẫu gốc: shape (6, 128)
         return self.aug_pipeline(x_raw)  # Sinh cặp (x_weak, x_strong)
+
+ContrastiveDataset = ContrastiveDatasetWrapper

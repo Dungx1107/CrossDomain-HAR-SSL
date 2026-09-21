@@ -6,6 +6,7 @@ import torch.nn as nn
 from models.encoders.cnn_transformer import CNNTransformerEncoder
 from models.encoders.vit_1d import ViT1DEncoder
 from models.encoders.cnn1d import StandardSensorEncoder1D
+from models.encoders.tstcc_encoder import TSTCCEncoder
 
 
 def build_encoder(
@@ -41,10 +42,15 @@ def build_encoder(
             dim_feedforward=256,
             dropout=0.1
         )
+    elif backbone_type == "tstcc":
+        return TSTCCEncoder(
+            in_channels=in_channels,
+            feature_dim=128,
+            dropout=0.35
+        )
 
     else:
         raise ValueError(
             f"❌ Không hỗ trợ backbone_type='{backbone_type}'. "
             f"Lựa chọn hợp lệ: ['standard', 'cnn_transformer', 'vit_1d']"
         )
-

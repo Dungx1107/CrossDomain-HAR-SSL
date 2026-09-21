@@ -1,82 +1,149 @@
 """
 ===============================================================================
-VAI TRÒ TRONG HỆ THỐNG:
-    - Đóng gói toàn bộ kiến trúc mạng Siamese (Siamese Network Architecture)
-      cho giai đoạn Huấn luyện Tự Giám Sát Đối Chiếu (TS-TCC Pre-training).
-    - Tự động tương thích với mọi loại Backbone (Standard 1D-CNN, ViT-1D, CNN-Transformer):
-        + Nếu Backbone xuất tensor 2D (B, 128): Đưa thẳng vào ProjectionHead.
-        + Nếu Backbone xuất tensor 3D (B, 128, L): Tự động nén qua Global Average Pooling
-          dọc theo trục thời gian (dim=-1) để đưa vào ProjectionHead.
+MODULE: TS-TCC SIAMESE MODEL WRAPPER
+===============================================================================
+Mục đích:
+    Đóng gói Encoder + Temporal Contrasting (TC) + Contextual Contrasting (NT-Xent)
+    vào cùng một class để trainer chỉ cần gọi một lần.
+
+Tham chiếu logic:
+    Cách gọi trong `trainer.py` của repo gốc emadeldeen24/TS-TCC:
+        z_weak   = model(x_weak)
+        z_strong = model(x_strong)
+        loss_tc, context = temporal_contr_model(z_weak, z_strong)
+        loss_cc = NTXentLoss(context_weak, context_strong)
+        loss_total = loss_tc + 0.7 * loss_cc
+
+Cấu trúc luồng:
+    x_weak, x_strong  (B, 6, 128)
+        -> Encoder (TSTCCEncoder)
+        -> z_weak, z_strong  (B, 128, 18)
+        -> TC 2 chiều với cùng t_samples
+        -> loss_tc = loss_tc_w2s + loss_tc_s2w
+        -> context_w, context_s  (B, 32)
+        -> NT-Xent  ->  loss_cc
+        -> loss_total = 1.0 * loss_tc + 0.7 * loss_cc
 ===============================================================================
 """
 
 import torch
 import torch.nn as nn
-from models.encoders.cnn1d import StandardSensorEncoder1D
-from models.heads.projection import ProjectionHead
+
+from models.encoders.tstcc_encoder import TSTCCEncoder
+from models.ssl.contrastive.tc import TC
+from losses.nt_xent import NTXentLoss
 
 
 class TSTCCModel(nn.Module):
     """
-    Mô hình Siamese Network TS-TCC hoàn chỉnh cho học tự giám sát chuỗi thời gian HAR.
+    Wrapper gộp Encoder + Temporal Contrasting + Contextual Contrasting.
+
+    Không có gì mới về mặt kiến trúc — chỉ gom logic mà repo gốc viết rải rác
+    trong trainer.py vào một chỗ cho gọn.
     """
 
     def __init__(
         self,
         encoder: nn.Module = None,
-        projection_head: nn.Module = None,
         in_channels: int = 6,
         feature_dim: int = 128,
-        projection_dim: int = 64
+        timesteps: int = 3,
+        tc_hidden_dim: int = 64,
+        tc_depth: int = 4,
+        tc_heads: int = 4,
+        tc_mlp_dim: int = 64,
+        lambda1: float = 1.0,
+        lambda2: float = 0.7,
+        temperature: float = 0.2,
     ):
+        """
+        Args:
+            encoder       : Backbone (mặc định TSTCCEncoder 3-block).
+            in_channels   : Số kênh cảm biến (6).
+            feature_dim   : Số kênh đặc trưng encoder (128).
+            timesteps     : K bước tương lai cần dự đoán trong TC (3 theo config HAR).
+            tc_hidden_dim : Chiều ẩn Transformer trong TC (64).
+            tc_depth      : Số layer Transformer trong TC (4).
+            tc_heads      : Số head attention (4).
+            tc_mlp_dim    : Chiều FFN trong TC (64).
+            lambda1       : Trọng số L_TC (1.0 theo bài báo).
+            lambda2       : Trọng số L_CC (0.7 theo bài báo).
+            temperature   : Nhiệt độ NT-Xent (0.2 theo bài báo).
+        """
         super().__init__()
 
-        # 1. Khởi tạo Khung xương (Encoder Backbone)
-        self.encoder = encoder if encoder is not None else StandardSensorEncoder1D(
+        self.lambda1 = lambda1
+        self.lambda2 = lambda2
+        self.timesteps = timesteps
+
+        # 1. Encoder
+        self.encoder = encoder if encoder is not None else TSTCCEncoder(
             in_channels=in_channels,
-            feature_dim=feature_dim
-        )
-
-        # 2. Khởi tạo Đầu chiếu tự giám sát (Projection Head)
-        self.projection_head = projection_head if projection_head is not None else ProjectionHead(
             feature_dim=feature_dim,
-            projection_dim=projection_dim
+            kernel_size=8,
+            dropout=0.35,
         )
 
-    def _pool_if_needed(self, z: torch.Tensor) -> torch.Tensor:
-        """
-        Đảm bảo tensor đầu ra từ encoder có dạng 2D (B, feature_dim).
-        Nếu encoder trả về dạng 3D (B, feature_dim, L), áp dụng Global Average Pooling theo chiều thời gian.
-        """
-        if z.dim() == 3:
-            # (B, 128, L) -> (B, 128)
-            z = z.mean(dim=-1)
-        elif z.dim() != 2:
-            raise ValueError(f"❌ Tensor đầu ra từ encoder phải là 2D hoặc 3D, nhận được shape: {tuple(z.shape)}")
-        return z
+        # 2. Temporal Contrasting
+        self.tc = TC(
+            final_out_channels=feature_dim,
+            timesteps=timesteps,
+            hidden_dim=tc_hidden_dim,
+            depth=tc_depth,
+            heads=tc_heads,
+            mlp_dim=tc_mlp_dim,
+        )
+
+        # 3. Contextual Contrasting
+        self.nt_xent = NTXentLoss(temperature=temperature)
 
     def forward(self, x_weak: torch.Tensor, x_strong: torch.Tensor):
         """
-        Lan truyền tiến song song (Forward Pass) cho 2 nhánh Siamese Network.
-        Tham số:
-            x_weak   (torch.Tensor): Batch tín hiệu góc nhìn yếu (B, in_channels, seq_len).
-            x_strong (torch.Tensor): Batch tín hiệu góc nhìn mạnh (B, in_channels, seq_len).
-        Trả về:
-            h_weak   (torch.Tensor): Vector biểu diễn chuẩn hóa L2 của nhánh Yếu (B, projection_dim).
-            h_strong (torch.Tensor): Vector biểu diễn chuẩn hóa L2 của nhánh Mạnh (B, projection_dim).
+        Args:
+            x_weak   : (B, in_channels, seq_len)
+            x_strong : (B, in_channels, seq_len)
+
+        Returns:
+            loss_total : scalar
+            loss_tc    : scalar (chỉ để log)
+            loss_cc    : scalar (chỉ để log)
         """
-        # =====================================================================
-        # NHÁNH 1: GÓC NHÌN YẾU (WEAK VIEW BRANCH)
-        # =====================================================================
-        z_weak = self.encoder(x_weak)
-        z_weak_pooled = self._pool_if_needed(z_weak)
-        h_weak = self.projection_head(z_weak_pooled, normalize=True)
+        device = x_weak.device
 
-        # =====================================================================
-        # NHÁNH 2: GÓC NHÌN MẠNH (STRONG VIEW BRANCH)
-        # =====================================================================
-        z_strong = self.encoder(x_strong)
-        z_strong_pooled = self._pool_if_needed(z_strong)
-        h_strong = self.projection_head(z_strong_pooled, normalize=True)
+        # ---------------------------------------------------------------
+        # 1. Encoder: (B, C, T_in) -> (B, feature_dim, T_out)
+        # ---------------------------------------------------------------
+        z_weak = self.encoder(x_weak)      # (B, 128, 18)
+        z_strong = self.encoder(x_strong)  # (B, 128, 18)
 
-        return h_weak, h_strong
+        # ---------------------------------------------------------------
+        # 2. Bốc 1 mốc t_samples duy nhất, dùng chung cho cả 2 chiều
+        # ---------------------------------------------------------------
+        seq_len = z_weak.shape[2]
+        # t_samples là scalar int, nằm trong [0, seq_len - timesteps - 1]
+        t_samples = torch.randint(
+            0, seq_len - self.timesteps, size=(1,)
+        ).item()
+
+        # ---------------------------------------------------------------
+        # 3. Temporal Contrasting 2 chiều (dùng cùng t_samples)
+        # ---------------------------------------------------------------
+        # Chiều 1: Weak -> Strong
+        loss_tc1, context_w, _ = self.tc(z_weak, z_strong, t_samples=t_samples)
+
+        # Chiều 2: Strong -> Weak
+        loss_tc2, context_s, _ = self.tc(z_strong, z_weak, t_samples=t_samples)
+
+        loss_tc = loss_tc1 + loss_tc2
+
+        # ---------------------------------------------------------------
+        # 4. Contextual Contrasting (NT-Xent)
+        # ---------------------------------------------------------------
+        loss_cc = self.nt_xent(context_w, context_s)
+
+        # ---------------------------------------------------------------
+        # 5. Tổng loss
+        # ---------------------------------------------------------------
+        loss_total = self.lambda1 * loss_tc + self.lambda2 * loss_cc
+
+        return loss_total, loss_tc, loss_cc

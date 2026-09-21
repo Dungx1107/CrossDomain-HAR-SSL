@@ -138,6 +138,7 @@ def train_and_eval_finetune(
 
     try:
         input_shape = (1, in_channels, seq_len)
+        model.to(target_device)
         complexity_info = measure_model_complexity(
             model,
             input_size=input_shape,
@@ -212,7 +213,7 @@ def train_and_eval_finetune(
             best_val_f1 = val_f1
             best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
 
-        if epoch % 5 == 0 or epoch == 1 or epoch == epochs:
+        if epoch % 10 == 0 or epoch == 1 or epoch == epochs:
             print(f"Epoch [{epoch:02d}/{epochs:02d}] | Train Loss: {avg_train_loss:.4f} | "
                   f"Val Acc: {val_acc:5.2f}% | Val Macro F1: {val_f1:5.2f}% (Best: {best_val_f1:5.2f}%)")
 
