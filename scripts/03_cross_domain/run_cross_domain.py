@@ -295,6 +295,7 @@ def run_experiment_for_pair(
 
     config_info = {
         "method": args.method,
+        "backbone": args.backbone,
         "source_domain": source_domain,
         "target_domain": target_domain,
         "common_classes": COMMON_CLASS_NAMES,
