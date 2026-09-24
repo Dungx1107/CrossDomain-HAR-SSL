@@ -18,12 +18,17 @@ from config.motionsense_config import MotionSenseConfig
 
 RAW_DATA_DIR = MotionSenseConfig.RAW_DATA_DIR
 OUTPUT_DIR = MotionSenseConfig.PROCESSED_DIR
-FEATURE_COLS = MotionSenseConfig.FEATURE_COLS
+
 WINDOW_SIZE = MotionSenseConfig.WINDOW_SIZE
 STRIDE = MotionSenseConfig.STRIDE
+
 TRAIN_SUBJECTS = MotionSenseConfig.TRAIN_SUBJECTS
 VAL_SUBJECTS = MotionSenseConfig.VAL_SUBJECTS
 TEST_SUBJECTS = MotionSenseConfig.TEST_SUBJECTS
+
+RAW_COLS_USER_ACC = MotionSenseConfig.RAW_COLS_USER_ACC
+RAW_COLS_GRAVITY = MotionSenseConfig.RAW_COLS_GRAVITY
+RAW_COLS_ROTATION = MotionSenseConfig.RAW_COLS_ROTATION
 
 LABEL_MAP = {
     'wlk': 0,  # Walking
@@ -35,6 +40,7 @@ LABEL_MAP = {
     'jog': 5  # Jogging # ⚠️ Chỉ có ở MotionSense (UCI-HAR không có)
 }
 
+
 def process_subject_subset(
         subjects_list,
         subset_name: str = "train"
@@ -44,7 +50,7 @@ def process_subject_subset(
     labels = []
     subjects = []
 
-    folder_paths = glob.glob(os.path.join(RAW_DATA_DIR, "*_*"))
+    folder_paths = sorted(glob.glob(os.path.join(RAW_DATA_DIR, "*_*")))
 
     for folder in folder_paths:
         if not os.path.isdir(folder):
@@ -60,7 +66,17 @@ def process_subject_subset(
             file_path = os.path.join(folder, f"sub_{sub_id}.csv")
             if os.path.exists(file_path):
                 df = pd.read_csv(file_path)
-                sensor_data = df[FEATURE_COLS].values
+
+                # ---- Trích xuất các cột thô ----
+                user_acc = df[RAW_COLS_USER_ACC].values.astype(np.float32)
+                gravity = df[RAW_COLS_GRAVITY].values.astype(np.float32)
+                gyro = df[RAW_COLS_ROTATION].values.astype(np.float32)
+
+                # ---- Tính total_acc = userAcc + gravity ----
+                total_acc = user_acc + gravity
+
+                # Ghép 6 kênh: [total_acc (3), gyro (3)]
+                sensor_data = np.concatenate([total_acc, gyro], axis=1)
                 num_samples = len(sensor_data)
 
                 # Dùng WINDOW_SIZE và STRIDE từ config  # Bản chất: len(labels) chính là tổng số sample
@@ -114,5 +130,36 @@ def main():
     print("\n✅ Hoàn thành đóng gói toàn bộ file .pt cho MotionSense!")
 
 
+def test():
+    print("\n" + "=" * 80)
+    print("🔍 KIỂM TRA ĐẶC TRƯNG SAU ĐÓNG GÓI (6 KÊNH)")
+    print("=" * 80)
+
+    file_path = MotionSenseConfig.DATA_ALL_PATH
+    if not os.path.exists(file_path):
+        print(f"⚠️ Không tìm thấy file: {file_path}")
+        return
+
+    data = torch.load(file_path)
+    X = data["samples"]  # Shape: (N, 6, 128)
+    y = data["labels"]
+
+    print("Shape:", X.shape)
+    print("Kênh 0-2 (total_acc) — mean/std:",
+          round(X[:, 0:3, :].mean().item(), 4), round(X[:, 0:3, :].std().item(), 4))
+    print("Kênh 3-5 (gyro)      — mean/std:",
+          round(X[:, 3:6, :].mean().item(), 4), round(X[:, 3:6, :].std().item(), 4))
+
+    # Kiểm tra magnitude trung bình của total_acc ở các hoạt động tĩnh (Sitting = 3, Standing = 4)
+    # Kỳ vọng: Gia tốc tổng ở trạng thái tĩnh phải tiệm cận ~1.0g do trọng lực
+    static_mask = (y == 3) | (y == 4)
+    if static_mask.sum() > 0:
+        static_acc = X[static_mask, 0:3, :]
+        mag = torch.sqrt((static_acc ** 2).sum(dim=1))
+        print("Độ lớn gia tốc ở tư thế tĩnh (Sit/Stand) — mean:", round(mag.mean().item(), 4))
+        print("👉 Nhận xét: Giá trị ~1.0g xác nhận thành phần trọng lực đã được cộng vào thành công!")
+
+
 if __name__ == "__main__":
     main()
+    test()

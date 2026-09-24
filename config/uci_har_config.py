@@ -59,7 +59,7 @@ class UCIHARConfig:
     # ========================================================================
     # 6 kênh tín hiệu: 3 gia tốc cơ thể + 3 con quay
     SIGNAL_NAMES = [
-        "body_acc_x", "body_acc_y", "body_acc_z",
+        "total_acc_x", "total_acc_y", "total_acc_z",
         "body_gyro_x", "body_gyro_y", "body_gyro_z"
     ]
     IN_CHANNELS = len(SIGNAL_NAMES)  # 6 kênh

@@ -24,7 +24,7 @@ if PROJECT_ROOT not in sys.path:
 from config.uci_har_config import UCIHARConfig
 
 RAW_UCI_DIR = UCIHARConfig.RAW_DATA_DIR
-OUTPUT_DIR = UCIHARConfig.DATA_DIR
+OUTPUT_DIR = UCIHARConfig.PROCESSED_DIR
 SIGNAL_NAMES = UCIHARConfig.SIGNAL_NAMES
 LABEL_MAPPING = UCIHARConfig.LABEL_MAPPING
 VAL_SUBJECTS_UCI = UCIHARConfig.VAL_SUBJECTS
@@ -126,6 +126,33 @@ def main():
     print(f"📁 All  : {all_data['samples'].shape}")
     print("\n✅ Hoàn thành đóng gói toàn bộ file .pt cho UCI-HAR!")
 
+def test():
+    print("\n" + "=" * 80)
+    print("🔍 KIỂM TRA ĐẶC TRƯNG SAU ĐÓNG GÓI: UCI-HAR")
+    print("=" * 80)
+
+    file_path = os.path.join(OUTPUT_DIR, "dataset_all.pt")
+    if not os.path.exists(file_path):
+        print(f"⚠️ File nahi mila: {file_path}")
+        return
+
+    data = torch.load(file_path)
+    X = data["samples"]  # Shape: (N, 6, 128)
+    y = data["labels"]
+
+    print("Shape:", X.shape)
+    print("Kênh 0-2 (total_acc) — mean/std:",
+          round(X[:, 0:3, :].mean().item(), 4), round(X[:, 0:3, :].std().item(), 4))
+    print("Kênh 3-5 (gyro)      — mean/std:",
+          round(X[:, 3:6, :].mean().item(), 4), round(X[:, 3:6, :].std().item(), 4))
+
+    # Sitting (3) aur Standing (4) par total acceleration magnitude check
+    static_mask = (y == 3) | (y == 4)
+    if static_mask.sum() > 0:
+        static_acc = X[static_mask, 0:3, :]
+        mag = torch.sqrt((static_acc ** 2).sum(dim=1))
+        print("Độ lớn gia tốc ở tư thế tĩnh (Sit/Stand) — mean:", round(mag.mean().item(), 4))
 
 if __name__ == "__main__":
     main()
+    test()

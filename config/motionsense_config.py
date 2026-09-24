@@ -45,9 +45,19 @@ class MotionSenseConfig:
     STRIDE = 64  # Overlap 50%
 
     # 6. KÊNH CẢM BIẾN
-    # 6 kênh cơ bản tương ứng với chuẩn của UCI-HAR
-    FEATURE_COLS = [
+    RAW_COLS_USER_ACC = [
         'userAcceleration.x', 'userAcceleration.y', 'userAcceleration.z',
+    ]
+    RAW_COLS_GRAVITY = [
+        'gravity.x', 'gravity.y', 'gravity.z',
+    ]
+    RAW_COLS_ROTATION = [
+        'rotationRate.x', 'rotationRate.y', 'rotationRate.z',
+    ]
+
+    CHANNEL_NAMES = [
+        'total_acc_x', 'total_acc_y', 'total_acc_z',
         'rotationRate.x', 'rotationRate.y', 'rotationRate.z'
     ]
-    IN_CHANNELS = len(FEATURE_COLS)  # 6 kênh
+    IN_CHANNELS = len(CHANNEL_NAMES)  # 6 kênh = 3 (total_acc) + 3 (gyro)
+
