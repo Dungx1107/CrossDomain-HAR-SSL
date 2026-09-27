@@ -20,6 +20,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config.motionsense_config import MotionSenseConfig
 from config.uci_har_config import UCIHARConfig
+from config.hhar_config import HHARConfig
+
 from datasets.contrastive_dataset import ContrastiveDatasetWrapper
 from models.encoders.builder import build_encoder
 from models.ssl.prototype.cluster_model import PrototypicalHARModel
@@ -77,7 +79,6 @@ DATASET_MAP = {
         Path(UCIHARConfig.DATA_ALL_PATH),
         int(UCIHARConfig.IN_CHANNELS)
     ),
-
     "hhar_phone": (
         HHARConfig.PROCESSED_DIR_PHONE / "dataset_all.pt",
         int(HHARConfig.IN_CHANNELS),
@@ -97,7 +98,12 @@ TAU_S = 0.1  # Softmax temperature
 EPSILON = 0.05  # Sinkhorn temperature
 
 
-def adjust_lr(optimizer, epoch, total_epochs, base_lr, warmup_epochs):
+def adjust_lr(optimizer,
+              epoch,
+              total_epochs,
+              base_lr,
+              warmup_epochs
+              ):
     """Linear warmup + Cosine annealing scheduler."""
     if epoch <= warmup_epochs:
         lr = base_lr * epoch / max(1, warmup_epochs)
@@ -109,7 +115,12 @@ def adjust_lr(optimizer, epoch, total_epochs, base_lr, warmup_epochs):
     return lr
 
 
-def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels: int, backbone_type: str):
+def train_prototype_single_domain(
+        domain_name: str,
+        data_path: Path,
+        in_channels: int,
+        backbone_type: str
+):
     save_dir = PROJECT_ROOT / "checkpoints" / "ssl_pretrain" / "prototype" / domain_name / backbone_type
     save_dir.mkdir(parents=True, exist_ok=True)
     ckpt_path = save_dir / f"prototype_{backbone_type}_encoder_pretrained_{domain_name}.pt"
@@ -119,6 +130,10 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
     print(f"🧠 Backbone: {backbone_type.upper()} | Feature Dim: {FEATURE_DIM} | Prototypes K: {args.num_prototypes}")
     print(f"💾 Thư mục lưu: {save_dir}")
     print("-" * 65)
+
+    if not data_path.exists():
+        print(f"❌ File dữ liệu không tồn tại: {data_path}. Bỏ qua domain này!")
+        return
 
     # 1. Dataset & DataLoader (bắt buộc drop_last=True cho Sinkhorn-Knopp)
     dataset = ContrastiveDatasetWrapper(data_path)
@@ -188,7 +203,7 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
             best_loss = avg_loss
             torch.save(model.encoder.state_dict(), ckpt_path)
 
-        if epoch % 5 == 0 or epoch == 1 or epoch == args.epochs:
+        if epoch % 10 == 0 or epoch == 1 or epoch == args.epochs:
             print(
                 f"Epoch [{epoch:02d}/{args.epochs:02d}] | LR: {cur_lr:.2e} | "
                 f"Loss: {avg_loss:.4f} (Best: {best_loss:.4f}) | "
