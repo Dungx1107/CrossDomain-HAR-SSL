@@ -77,6 +77,15 @@ DATASET_MAP = {
         Path(UCIHARConfig.DATA_ALL_PATH),
         int(UCIHARConfig.IN_CHANNELS)
     ),
+
+    "hhar_phone": (
+        HHARConfig.PROCESSED_DIR_PHONE / "dataset_all.pt",
+        int(HHARConfig.IN_CHANNELS),
+    ),
+    "hhar_watch": (
+        HHARConfig.PROCESSED_DIR_WATCH / "dataset_all.pt",
+        int(HHARConfig.IN_CHANNELS),
+    ),
 }
 
 # Tham số SwAV
@@ -84,8 +93,8 @@ FEATURE_DIM = 128
 PROJECTION_DIM = 64
 WARMUP_EPOCHS = 5
 WEIGHT_DECAY = 1e-4
-TAU_S = 0.1                    # Softmax temperature
-EPSILON = 0.05                 # Sinkhorn temperature
+TAU_S = 0.1  # Softmax temperature
+EPSILON = 0.05  # Sinkhorn temperature
 
 
 def adjust_lr(optimizer, epoch, total_epochs, base_lr, warmup_epochs):
@@ -172,7 +181,7 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
 
         # Cảnh báo nếu entropy thấp (nguy cơ collapse)
         if avg_entropy < (0.3 * max_entropy):
-            print(f"⚠️  Cảnh báo sụp cụm: Entropy={avg_entropy:.2f} < {0.3*max_entropy:.2f} tại epoch {epoch}")
+            print(f"⚠️  Cảnh báo sụp cụm: Entropy={avg_entropy:.2f} < {0.3 * max_entropy:.2f} tại epoch {epoch}")
 
         # Lưu checkpoint theo Loss tốt nhất sau warmup
         if epoch > WARMUP_EPOCHS and avg_loss < best_loss:
@@ -204,7 +213,8 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
 def main():
     print("=" * 80)
     print(f"🌟 BẮT ĐẦU PRETRAIN PROTOTYPE SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}")
-    print(f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size} | K: {args.num_prototypes}")
+    print(
+        f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size} | K: {args.num_prototypes}")
     print("=" * 80)
 
     for name in args.datasets:

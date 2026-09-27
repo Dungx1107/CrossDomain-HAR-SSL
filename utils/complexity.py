@@ -14,7 +14,6 @@ import torch.nn as nn
 
 try:
     from thop import profile, clever_format
-
     HAS_THOP = True
 except ImportError:
     HAS_THOP = False
@@ -22,24 +21,18 @@ except ImportError:
 
 def measure_model_complexity(
         model: nn.Module,
-        input_size=(1, 9, 128),
+        input_size=(1, 6, 128),
         device=None,
         num_warmup=20,
         num_runs=100
 ):
     """
     Đo toàn diện độ phức tạp và độ trễ suy luận của mô hình.
-
-    Args:
-        model (nn.Module): Mô hình nơ-ron cần đo.
-        input_size (tuple): Kích thước của 1 mẫu đơn lẻ (Batch=1, In_Channels, Window_Size).
-        device (torch.device): CPU hoặc CUDA GPU.
-        num_warmup (int): Số lượt chạy làm nóng bộ nhớ cache trước khi bấm giờ.
-        num_runs (int): Số lượt đo để lấy trung bình thời gian suy luận.
-
-    Returns:
-        dict: Chứa toàn bộ các thông số đo đạc để lưu vào config.json và in báo cáo.
     """
+    if device is None:
+        device = next(model.parameters()).device
+    else:
+        model = model.to(device)
 
     model.eval()
 
@@ -47,41 +40,42 @@ def measure_model_complexity(
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    # 2. Ước lượng dung lượng mô hình trên RAM/VRAM (theo định dạng float32 = 4 bytes)
+    # 2. Dung lượng mô hình (float32 = 4 bytes)
     model_size_mb = (total_params * 4) / (1024 ** 2)
 
-    # 3. Tính FLOPs / MACs bằng thop
+    # 3. Tính FLOPs / MACs bằng thop (Bắt lỗi chi tiết, không nuốt ngoại lệ)
     dummy_input = torch.randn(*input_size, device=device)
     flops_str, macs_str = "N/A", "N/A"
-    flops_count, macs_count = 0, 0
+    thop_error = None
 
     if HAS_THOP:
         try:
             macs_count, _ = profile(model, inputs=(dummy_input,), verbose=False)
-            flops_count = macs_count * 2  # 1 MAC xấp xỉ 2 FLOPs
-            macs_str, _ = clever_format([macs_count, total_params], "%.2f")
-            flops_str, _ = clever_format([flops_count, total_params], "%.2f")
-        except Exception:
-            pass
+            flops_count = macs_count * 2
+            formatted = clever_format([macs_count, flops_count], "%.2f")
+            macs_str, flops_str = formatted[0], formatted[1]
+        except Exception as e:
+            thop_error = f"{type(e).__name__}: {str(e)}"
+            print(f"⚠️ [THOP WARNING] Không đo được MACs/FLOPs: {thop_error}")
+    else:
+        thop_error = "Thư viện 'thop' chưa được cài đặt (pip install thop)"
 
-    # 4. Đo độ trễ suy luận (Inference Latency - mili-giây / mẫu)
+    # 4. Đo độ trễ suy luận (Inference Latency)
     with torch.no_grad():
-        # Warm-up (Khởi động GPU/CPU)
         for _ in range(num_warmup):
             _ = model(dummy_input)
 
-        if device.type == "cuda":
+        if torch.device(device).type == "cuda":
             torch.cuda.synchronize()
 
         start_time = time.time()
         for _ in range(num_runs):
             _ = model(dummy_input)
-            if device.type == "cuda":
+            if torch.device(device).type == "cuda":
                 torch.cuda.synchronize()
-
         end_time = time.time()
 
-    avg_latency_ms = ((end_time - start_time) / num_runs) * 1000  # Chuyển sang ms
+    avg_latency_ms = ((end_time - start_time) / num_runs) * 1000
 
     complexity_info = {
         "input_shape": list(input_size),
@@ -91,7 +85,8 @@ def measure_model_complexity(
         "macs": macs_str,
         "flops": flops_str,
         "latency_ms_per_sample": round(avg_latency_ms, 3),
-        "device": str(device)
+        "device": str(device),
+        "thop_status": "Success" if thop_error is None else thop_error
     }
 
     return complexity_info
@@ -109,4 +104,6 @@ def print_complexity_report(info: dict):
     print(f"⚡ Khối lượng tính toán (MACs)   : {info['macs']}")
     print(f"🚀 Khối lượng tính toán (FLOPs)  : {info['flops']}")
     print(f"⏱️ Độ trễ suy luận (Latency)     : {info['latency_ms_per_sample']} ms / sample (trên {info['device']})")
+    if info.get("thop_status") != "Success":
+        print(f"⚠️ Ghi chú FLOPs/MACs           : {info['thop_status']}")
     print("=" * 75 + "\n")

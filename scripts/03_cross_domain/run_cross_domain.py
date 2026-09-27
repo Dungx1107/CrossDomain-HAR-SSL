@@ -21,6 +21,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config.uci_har_config import UCIHARConfig
 from config.motionsense_config import MotionSenseConfig
+from config.hhar_config import HHARConfig
+
 from utils.sampling import sample_subset_by_ratio
 from engines.transfer.finetune_trainer import train_and_eval_finetune
 from engines.evaluation.evaluator import ModelEvaluator
@@ -71,7 +73,17 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 TRANSFER_PAIRS = [
     ("uci_har", "motionsense"),
-    ("motionsense", "uci_har")
+    ("motionsense", "uci_har"),
+
+    # Cặp chuyển giao giữa 2 thiết bị HHAR:
+    ("hhar_phone", "hhar_watch"),
+    ("hhar_watch", "hhar_phone"),
+
+    ("motionsense", "hhar_watch"),
+    ("motionsense", "hhar_phone"),
+
+    ("uci_har", "hhar_watch"),
+    ("uci_har", "hhar_phone"),
 ]
 
 PROTOCOLS_TO_RUN = [
@@ -91,7 +103,21 @@ DOMAIN_DATA_PATHS = {
         "val_path": Path(UCIHARConfig.PROCESSED_VAL_PATH),
         "test_path": Path(UCIHARConfig.PROCESSED_TEST_PATH),
         "in_channels": int(UCIHARConfig.IN_CHANNELS),
-    }
+    },
+
+    "hhar_phone": {
+        "train_path": HHARConfig.PROCESSED_DIR_PHONE / "train.pt",
+        "val_path": HHARConfig.PROCESSED_DIR_PHONE / "val.pt",
+        "test_path": HHARConfig.PROCESSED_DIR_PHONE / "test.pt",
+        "in_channels": int(HHARConfig.IN_CHANNELS),
+    },
+
+    "hhar_watch": {
+        "train_path": HHARConfig.PROCESSED_DIR_WATCH / "train.pt",
+        "val_path": HHARConfig.PROCESSED_DIR_WATCH / "val.pt",
+        "test_path": HHARConfig.PROCESSED_DIR_WATCH / "test.pt",
+        "in_channels": int(HHARConfig.IN_CHANNELS),
+    },
 }
 
 
@@ -126,7 +152,8 @@ def load_and_prepare_target_data(domain_name: str):
     x_val, y_val = process_tensor(raw_val["samples"], raw_val["labels"])
     x_test, y_test = process_tensor(raw_test["samples"], raw_test["labels"])
 
-    print(f"   🔍 Sau khi lọc 5 lớp & chuẩn hóa (N, C, T): Train={x_train.shape}, Val={x_val.shape}, Test={x_test.shape}")
+    print(
+        f"   🔍 Sau khi lọc 5 lớp & chuẩn hóa (N, C, T): Train={x_train.shape}, Val={x_val.shape}, Test={x_test.shape}")
 
     return (x_train, y_train, x_val, y_val, x_test, y_test, cfg["in_channels"])
 

@@ -12,10 +12,11 @@ import torch
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
-  sys.path.insert(0, str(PROJECT_ROOT))
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.motionsense_config import MotionSenseConfig
 from config.uci_har_config import UCIHARConfig
+from config.hhar_config import HHARConfig
 from engines.pretrain_ssl.contrastive_trainer import train_contrastive_encoder
 
 # ================== ARGUMENT PARSER ==================
@@ -60,63 +61,71 @@ DATASET_MAP = {
         Path(UCIHARConfig.DATA_ALL_PATH),
         int(UCIHARConfig.IN_CHANNELS),
     ),
+    "hhar_phone": (
+        HHARConfig.PROCESSED_DIR_PHONE / "dataset_all.pt",
+        int(HHARConfig.IN_CHANNELS),
+    ),
+    "hhar_watch": (
+        HHARConfig.PROCESSED_DIR_WATCH / "dataset_all.pt",
+        int(HHARConfig.IN_CHANNELS),
+    ),
 }
 
 
 def main():
-  print("=" * 80)
-  print(
-      f"🌟 BẮT ĐẦU PRETRAIN SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}"
-  )
-  print(
-      f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch"
-      f" Size: {args.batch_size}"
-  )
-  print("=" * 80)
-
-  for name in args.datasets:
-    if name not in DATASET_MAP:
-      print(f"⚠️ Bỏ qua dataset không hợp lệ: {name}")
-      continue
-
-    data_path, in_channels = DATASET_MAP[name]
-
-    save_dir = (
-        PROJECT_ROOT
-        / "checkpoints"
-        / "ssl_pretrain"
-        / "contrastive"
-        / name
+    print("=" * 80)
+    print(
+        f"🌟 BẮT ĐẦU PRETRAIN SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}"
     )
-    save_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_name = f"tstcc_{args.backbone}_encoder_pretrained_{name}.pt"
-
-    print(f"\n🚀 ĐANG PRETRAIN: {name.upper()}")
-    print(f"📂 Dữ liệu: {data_path}")
-    print(f"🧠 Backbone: {args.backbone.upper()}")
-    print(f"💾 Thư mục lưu: {save_dir}")
-    print("-" * 50)
-
-    results = train_contrastive_encoder(
-        data_path=data_path,
-        save_dir=save_dir,
-        checkpoint_name=checkpoint_name,
-        backbone_type=args.backbone,
-        in_channels=in_channels,
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        device=DEVICE,
-        measure_complexity=True,
+    print(
+        f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch"
+        f" Size: {args.batch_size}"
     )
+    print("=" * 80)
 
-    print(f"   📁 Checkpoint : {results['best_ckpt']}")
-    print(f"   📉 Best Loss  : {results['best_loss']:.5f}")
-    print(f"   📊 Tổng số mẫu: {results['total_samples']:,}")
+    for name in args.datasets:
+        if name not in DATASET_MAP:
+            print(f"⚠️ Bỏ qua dataset không hợp lệ: {name}")
+            continue
 
-  print("\n" + "=" * 80)
-  print("🎉 HOÀN THÀNH PRETRAIN TẤT CẢ DATASET!")
-  print("=" * 80)
+        data_path, in_channels = DATASET_MAP[name]
+
+        save_dir = (
+                PROJECT_ROOT
+                / "checkpoints"
+                / "ssl_pretrain"
+                / "contrastive"
+                / name
+        )
+        save_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_name = f"tstcc_{args.backbone}_encoder_pretrained_{name}.pt"
+
+        print(f"\n🚀 ĐANG PRETRAIN: {name.upper()}")
+        print(f"📂 Dữ liệu: {data_path}")
+        print(f"🧠 Backbone: {args.backbone.upper()}")
+        print(f"💾 Thư mục lưu: {save_dir}")
+        print("-" * 50)
+
+        results = train_contrastive_encoder(
+            data_path=data_path,
+            save_dir=save_dir,
+            checkpoint_name=checkpoint_name,
+            backbone_type=args.backbone,
+            in_channels=in_channels,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            device=DEVICE,
+            measure_complexity=True,
+        )
+
+        print(f"   📁 Checkpoint : {results['best_ckpt']}")
+        print(f"   📉 Best Loss  : {results['best_loss']:.5f}")
+        print(f"   📊 Tổng số mẫu: {results['total_samples']:,}")
+
+    print("\n" + "=" * 80)
+    print("🎉 HOÀN THÀNH PRETRAIN!")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
-  main()
+    main()
