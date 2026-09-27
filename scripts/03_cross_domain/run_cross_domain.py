@@ -2,6 +2,7 @@
 ===============================================================================
 SCRIPT: CENTRALIZED CROSS-DOMAIN ADAPTATION BENCHMARK
 Hỗ trợ cả TS-TCC và Prototype SSL thông qua argument --method
+Hỗ trợ truyền động danh sách cặp chuyển giao qua --pairs hoặc --pair_indices
 Chạy tối ưu trên môi trường Local & Kaggle GPU
 ===============================================================================
 """
@@ -28,50 +29,8 @@ from engines.transfer.finetune_trainer import train_and_eval_finetune
 from engines.evaluation.evaluator import ModelEvaluator
 from models.encoders.builder import build_encoder
 
-# ================== ARGUMENT PARSER ==================
-parser = argparse.ArgumentParser(description="Cross-Domain HAR Benchmark")
-parser.add_argument("--method", type=str, default="tstcc",
-                    choices=["tstcc", "prototype"],
-                    help="Phương pháp SSL đã dùng để pretrain")
-parser.add_argument("--backbone", type=str, default="vit_1d",
-                    choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
-                    help="Loại backbone")
-parser.add_argument("--epochs", type=int, default=40,
-                    help="Số epoch finetune")
-parser.add_argument("--batch_size", type=int, default=64,
-                    help="Batch size")
-parser.add_argument("--seeds", nargs="+", type=int, default=[42, 123],
-                    help="Danh sách seed (vd: --seeds 42 123)")
-parser.add_argument("--fractions", nargs="+", type=float, default=[0.01, 0.05, 0.1],
-                    help="Danh sách fraction (vd: --fractions 0.01 0.05 0.1 0.5 1.0)")
-args = parser.parse_args()
-
-# GÁN THAM SỐ TỪ ARGS VÀO BIẾN CHẠY
-SEEDS = args.seeds
-LABEL_FRACTIONS = args.fractions
-EPOCHS = args.epochs
-BATCH_SIZE = args.batch_size
-
-# CẤU HÌNH ÁNH XẠ THƯ MỤC CHECKPOINT
-METHOD_TO_FOLDER = {
-    "tstcc": "contrastive",
-    "prototype": "prototype"
-}
-
-# CẤU HÌNH THỰC NGHIỆM ĐẦY ĐỦ CHO KAGGLE
-COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
-NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-# # 3 Seeds chuẩn học thuật & Đủ 5 mốc phân số nhãn
-# SEEDS = [42, 123, 456]
-# LABEL_FRACTIONS = [0.01, 0.05, 0.1, 0.5, 1.0]
-#
-# EPOCHS = 40
-# BATCH_SIZE = 64
-
-TRANSFER_PAIRS = [
+# DANH SÁCH TẤT CẢ CẶP MẶC ĐỊNH
+DEFAULT_TRANSFER_PAIRS = [
     ("uci_har", "motionsense"),
     ("motionsense", "uci_har"),
 
@@ -84,12 +43,83 @@ TRANSFER_PAIRS = [
 
     ("uci_har", "hhar_watch"),
     ("uci_har", "hhar_phone"),
+
+    ("hhar_watch", "motionsense"),
+    ("hhar_watch", "uci_har"),
+
+    ("hhar_phone", "motionsense"),
+    ("hhar_phone", "uci_har"),
 ]
+
+# ================== ARGUMENT PARSER ==================
+parser = argparse.ArgumentParser(description="Cross-Domain HAR Benchmark")
+parser.add_argument("--method", type=str, default="tstcc",
+                    choices=["tstcc", "prototype"],
+                    help="Phương pháp SSL đã dùng để pretrain")
+parser.add_argument("--backbone", type=str, default="standard",
+                    choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
+                    help="Loại backbone")
+parser.add_argument("--epochs", type=int, default=40,
+                    help="Số epoch finetune")
+parser.add_argument("--batch_size", type=int, default=64,
+                    help="Batch size")
+parser.add_argument("--seeds", nargs="+", type=int, default=[42, 123],
+                    help="Danh sách seed (vd: --seeds 42 123)")
+parser.add_argument("--fractions", nargs="+", type=float, default=[0.01, 0.05, 0.1],
+                    help="Danh sách fraction (vd: --fractions 0.01 0.05 0.1 0.5 1.0)")
+
+# CÁC THAM SỐ TRUYỀN CẶP CHUYỂN GIAO ĐỘNG
+parser.add_argument("--pairs", nargs="+", type=str, default=None,
+                    help="Danh sách cặp theo cú pháp source:target (vd: --pairs hhar_phone:hhar_watch uci_har:hhar_watch)")
+parser.add_argument("--pair_indices", nargs="+", type=int, default=None,
+                    help="Danh sách index các cặp từ mảng mặc định (vd: --pair_indices 2 3 4 5 6 7)")
+
+args = parser.parse_args()
+
+# GÁN THAM SỐ TỪ ARGS VÀO BIẾN CHẠY
+SEEDS = args.seeds
+LABEL_FRACTIONS = args.fractions
+EPOCHS = args.epochs
+BATCH_SIZE = args.batch_size
+
+# XÁC ĐỊNH DANH SÁCH CẶP CHUYỂN GIAO THỰC THI
+if args.pairs is not None:
+    SELECTED_PAIRS = []
+    for pair_str in args.pairs:
+        if ":" not in pair_str:
+            raise ValueError(f"❌ Định dạng cặp '{pair_str}' không hợp lệ. Vui lòng dùng cú pháp source:target")
+        src, tgt = pair_str.split(":", 1)
+        SELECTED_PAIRS.append((src.strip(), tgt.strip()))
+elif args.pair_indices is not None:
+    SELECTED_PAIRS = [DEFAULT_TRANSFER_PAIRS[i] for i in args.pair_indices if 0 <= i < len(DEFAULT_TRANSFER_PAIRS)]
+else:
+    SELECTED_PAIRS = DEFAULT_TRANSFER_PAIRS
+
+# CẤU HÌNH ÁNH XẠ THƯ MỤC CHECKPOINT
+METHOD_TO_FOLDER = {
+    "tstcc": "contrastive",
+    "prototype": "prototype"
+}
+
+COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
+NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 PROTOCOLS_TO_RUN = [
     {"name": "linear_probing", "freeze_backbone": True},
     {"name": "full_finetuning", "freeze_backbone": False}
 ]
+
+# Kiểm tra đường dẫn watch đã sửa 5 lớp nếu có
+WATCH_FIXED_DIR = Path("/kaggle/working/data_fixed/hhar_watch")
+if (WATCH_FIXED_DIR / "test.pt").exists():
+    WATCH_TRAIN = WATCH_FIXED_DIR / "train.pt"
+    WATCH_VAL = WATCH_FIXED_DIR / "val.pt"
+    WATCH_TEST = WATCH_FIXED_DIR / "test.pt"
+else:
+    WATCH_TRAIN = HHARConfig.PROCESSED_DIR_WATCH / "train.pt"
+    WATCH_VAL = HHARConfig.PROCESSED_DIR_WATCH / "val.pt"
+    WATCH_TEST = HHARConfig.PROCESSED_DIR_WATCH / "test.pt"
 
 DOMAIN_DATA_PATHS = {
     "motionsense": {
@@ -104,24 +134,25 @@ DOMAIN_DATA_PATHS = {
         "test_path": Path(UCIHARConfig.PROCESSED_TEST_PATH),
         "in_channels": int(UCIHARConfig.IN_CHANNELS),
     },
-
     "hhar_phone": {
         "train_path": HHARConfig.PROCESSED_DIR_PHONE / "train.pt",
         "val_path": HHARConfig.PROCESSED_DIR_PHONE / "val.pt",
         "test_path": HHARConfig.PROCESSED_DIR_PHONE / "test.pt",
         "in_channels": int(HHARConfig.IN_CHANNELS),
     },
-
     "hhar_watch": {
-        "train_path": HHARConfig.PROCESSED_DIR_WATCH / "train.pt",
-        "val_path": HHARConfig.PROCESSED_DIR_WATCH / "val.pt",
-        "test_path": HHARConfig.PROCESSED_DIR_WATCH / "test.pt",
+        "train_path": WATCH_TRAIN,
+        "val_path": WATCH_VAL,
+        "test_path": WATCH_TEST,
         "in_channels": int(HHARConfig.IN_CHANNELS),
     },
 }
 
 
 def load_and_prepare_target_data(domain_name: str):
+    if domain_name not in DOMAIN_DATA_PATHS:
+        raise ValueError(f"❌ Không hỗ trợ domain đích: {domain_name}")
+
     cfg = DOMAIN_DATA_PATHS[domain_name]
     raw_train = torch.load(cfg["train_path"], map_location="cpu", weights_only=True)
     raw_val = torch.load(cfg["val_path"], map_location="cpu", weights_only=True)
@@ -142,7 +173,6 @@ def load_and_prepare_target_data(domain_name: str):
         else:
             l = l.long()
 
-        # Chuẩn hóa về (N, Kênh, Thời gian) = (N, 6, 128)
         if s.ndim == 3 and s.shape[1] == 128 and s.shape[2] == 6:
             s = s.permute(0, 2, 1)
 
@@ -152,9 +182,7 @@ def load_and_prepare_target_data(domain_name: str):
     x_val, y_val = process_tensor(raw_val["samples"], raw_val["labels"])
     x_test, y_test = process_tensor(raw_test["samples"], raw_test["labels"])
 
-    print(
-        f"   🔍 Sau khi lọc 5 lớp & chuẩn hóa (N, C, T): Train={x_train.shape}, Val={x_val.shape}, Test={x_test.shape}")
-
+    print(f"   🔍 Sau khi lọc 5 lớp & chuẩn hóa (N, C, T): Train={x_train.shape}, Val={x_val.shape}, Test={x_test.shape}")
     return (x_train, y_train, x_val, y_val, x_test, y_test, cfg["in_channels"])
 
 
@@ -169,7 +197,6 @@ def run_experiment_for_pair(
     print(f"🔧 Phương pháp SSL: {args.method.upper()} | Backbone: {backbone_type}")
     print("=" * 90)
 
-    # Ánh xạ thư mục lưu checkpoint pretrain tự động
     ssl_folder = METHOD_TO_FOLDER.get(args.method, args.method)
     source_ckpt = (PROJECT_ROOT / "checkpoints/ssl_pretrain" / ssl_folder /
                    source_domain / backbone_type /
@@ -177,7 +204,7 @@ def run_experiment_for_pair(
 
     if not source_ckpt.exists():
         raise FileNotFoundError(f"❌ Không tìm thấy checkpoint SSL nguồn tại: {source_ckpt}")
-    print(f"📦 Checkpoint SSL nguồn: {source_ckpt}")
+    print(f"📦 Checkpoint SSL nguồn: {source_ckpt.name}")
 
     x_train_full, y_train_full, x_val_full, y_val_full, x_test, y_test, in_channels = load_and_prepare_target_data(
         target_domain)
@@ -293,7 +320,6 @@ def run_experiment_for_pair(
                 if isinstance(eval_result, dict):
                     eval_details = eval_result
 
-            # Đảm bảo confusion matrix chuyển thành list số nguyên chuẩn để không lỗi JSON
             raw_cm = eval_details.get("confusion_matrix", [])
             if isinstance(raw_cm, np.ndarray):
                 raw_cm = raw_cm.tolist()
@@ -365,11 +391,12 @@ def main():
     print(f"🌟 ĐÁNH GIÁ CHUYỂN GIAO MIỀN (5 COMMON CLASSES)")
     print(f"🔧 Method: {args.method.upper()} | Backbone: {args.backbone} | Device: {DEVICE}")
     print(f"📅 Seeds: {SEEDS}")
-    total_runs = len(TRANSFER_PAIRS) * len(PROTOCOLS_TO_RUN) * len(LABEL_FRACTIONS) * len(SEEDS)
+    print(f"📋 Danh sách cặp chạy ({len(SELECTED_PAIRS)} cặp): {SELECTED_PAIRS}")
+    total_runs = len(SELECTED_PAIRS) * len(PROTOCOLS_TO_RUN) * len(LABEL_FRACTIONS) * len(SEEDS)
     print(f"📊 Tổng số lần train/eval: {total_runs}")
     print("=" * 90)
 
-    for src, tgt in TRANSFER_PAIRS:
+    for src, tgt in SELECTED_PAIRS:
         run_experiment_for_pair(
             source_domain=src,
             target_domain=tgt,
