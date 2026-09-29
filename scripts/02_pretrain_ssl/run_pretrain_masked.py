@@ -28,13 +28,12 @@ from models.ssl.masked.cnn1d_masked import StandardCNNMaskedAutoEncoder
 from models.encoders.cnn_transformer import CNNTransformerEncoder
 from models.ssl.masked.mask_generator import SegmentMaskGenerator
 from engines.pretrain_ssl.masked_trainer import MaskedSSLTrainer
-from utils.logger import setup_logger
 
 
 class CrossHARMaskedAutoEncoder(nn.Module):
     def __init__(self, in_channels: int = 6, d_model: int = 128, mask_ratio: float = 0.15):
         super().__init__()
-        self.feature_dim = d_model  # Đã thêm lưu feature_dim tường minh
+        self.feature_dim = d_model
         self.mask_generator = SegmentMaskGenerator(mask_ratio=mask_ratio)
         self.encoder = CNNTransformerEncoder(in_channels=in_channels, d_model=d_model)
         self.decoder = nn.Sequential(
@@ -85,7 +84,6 @@ def parse_args():
 
 def main():
     args = parse_args()
-    logger = setup_logger("RunMaskedPretrain")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     for dataset_name in args.datasets:
@@ -95,11 +93,11 @@ def main():
         save_dir.mkdir(parents=True, exist_ok=True)
         checkpoint_name = f"masked_{args.backbone}_encoder_pretrained_{dataset_name}.pt"
 
-        logger.info(f"\n" + "=" * 80)
-        logger.info(f"🚀 BẮT ĐẦU PRETRAIN MASKED: {dataset_name.upper()} | Backbone: {args.backbone}")
-        logger.info(f"💾 Thư mục lưu: {save_dir}")
-        logger.info(f"📦 Tên Checkpoint: {checkpoint_name}")
-        logger.info("=" * 80)
+        print("\n" + "=" * 80)
+        print(f"🚀 BẮT ĐẦU PRETRAIN MASKED: {dataset_name.upper()} | Backbone: {args.backbone}")
+        print(f"💾 Thư mục lưu: {save_dir}")
+        print(f"📦 Tên Checkpoint: {checkpoint_name}")
+        print("=" * 80)
 
         train_loader = get_har_all_loader(data_dir=data_dir, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
         _, val_loader, _ = get_har_dataloaders(data_dir=data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
@@ -136,13 +134,12 @@ def main():
             device=device,
             save_dir=save_dir,
             checkpoint_name=checkpoint_name,
-            max_grad_norm=2.0,
-            logger=logger
+            max_grad_norm=2.0
         )
 
         trainer.fit(epochs=args.epochs)
 
-    logger.info("🎉 HOÀN TẤT PRETRAIN TOÀN BỘ DATASET!")
+    print("\n🎉 HOÀN TẤT PRETRAIN TOÀN BỘ DATASET!")
 
 
 if __name__ == "__main__":

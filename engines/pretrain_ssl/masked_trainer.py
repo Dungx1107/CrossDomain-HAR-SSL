@@ -16,8 +16,6 @@ import torch.nn as nn
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from utils.logger import setup_logger
-
 
 class MaskedSSLTrainer:
     def __init__(
@@ -31,7 +29,6 @@ class MaskedSSLTrainer:
         save_dir: Union[str, Path] = "checkpoints/ssl_pretrain/masked",
         checkpoint_name: str = "masked_standard_encoder_pretrained_dataset.pt",
         max_grad_norm: float = 2.0,
-        logger: Optional[Any] = None
     ):
         self.model = model
         self.train_loader = train_loader
@@ -45,7 +42,6 @@ class MaskedSSLTrainer:
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_path = self.save_dir / checkpoint_name
         self.max_grad_norm = max_grad_norm
-        self.logger = logger or setup_logger("MaskedSSLTrainer")
 
         self.best_loss = float("inf")
         self.history = []
@@ -101,7 +97,7 @@ class MaskedSSLTrainer:
         if epochs < 1:
             raise ValueError("Số lượng epochs phải >= 1")
 
-        self.logger.info(f"🚀 Bắt đầu Masked Pretrain trên {self.device} trong {epochs} epochs...")
+        print(f"🚀 Bắt đầu Masked Pretrain trên {self.device} trong {epochs} epochs...")
         val_loss = float("inf")
 
         for epoch in range(1, epochs + 1):
@@ -124,7 +120,7 @@ class MaskedSSLTrainer:
             })
 
             elapsed = time.time() - t0
-            self.logger.info(
+            print(
                 f"Epoch {epoch:03d}/{epochs:03d} | Train Loss: {train_loss:.5f} | "
                 f"Val Loss: {val_loss:.5f} | LR: {current_lr:.6f} | Time: {elapsed:.2f}s"
             )
@@ -134,7 +130,7 @@ class MaskedSSLTrainer:
                 self.best_loss = val_loss
                 encoder_to_save = getattr(self.model, "encoder", self.model)
                 torch.save({"encoder_state_dict": encoder_to_save.state_dict()}, self.checkpoint_path)
-                self.logger.info(f"⭐ Lưu Best Encoder Checkpoint tại: {self.checkpoint_path} (Loss: {val_loss:.5f})")
+                print(f"⭐ Lưu Best Encoder Checkpoint tại: {self.checkpoint_path} (Loss: {val_loss:.5f})")
 
         # Ghi log lịch sử CSV
         csv_path = self.save_dir / "loss_history.csv"
@@ -162,5 +158,5 @@ class MaskedSSLTrainer:
         except Exception:
             pass
 
-        self.logger.info(f"✅ Hoàn tất pretrain! File trọng số sẵn sàng tại: {self.checkpoint_path}")
+        print(f"✅ Hoàn tất pretrain! File trọng số sẵn sàng tại: {self.checkpoint_path}")
         return self.history
