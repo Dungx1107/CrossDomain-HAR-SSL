@@ -22,6 +22,8 @@ IGNORE_FILES = {
     "*.pyc",
     "*.pt",
     "*.pth",
+    "*.png",
+    "*.json"
 }
 
 

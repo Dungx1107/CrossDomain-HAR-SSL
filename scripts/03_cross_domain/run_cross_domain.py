@@ -54,7 +54,7 @@ DEFAULT_TRANSFER_PAIRS = [
 # ================== ARGUMENT PARSER ==================
 parser = argparse.ArgumentParser(description="Cross-Domain HAR Benchmark")
 parser.add_argument("--method", type=str, default="tstcc",
-                    choices=["tstcc", "prototype"],
+                    choices=["tstcc", "prototype", "masked"],
                     help="Phương pháp SSL đã dùng để pretrain")
 parser.add_argument("--backbone", type=str, default="standard",
                     choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
@@ -98,7 +98,8 @@ else:
 # CẤU HÌNH ÁNH XẠ THƯ MỤC CHECKPOINT
 METHOD_TO_FOLDER = {
     "tstcc": "contrastive",
-    "prototype": "prototype"
+    "prototype": "prototype",
+    "masked": "masked"
 }
 
 COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
@@ -182,7 +183,8 @@ def load_and_prepare_target_data(domain_name: str):
     x_val, y_val = process_tensor(raw_val["samples"], raw_val["labels"])
     x_test, y_test = process_tensor(raw_test["samples"], raw_test["labels"])
 
-    print(f"   🔍 Sau khi lọc 5 lớp & chuẩn hóa (N, C, T): Train={x_train.shape}, Val={x_val.shape}, Test={x_test.shape}")
+    print(
+        f"   🔍 Sau khi lọc 5 lớp & chuẩn hóa (N, C, T): Train={x_train.shape}, Val={x_val.shape}, Test={x_test.shape}")
     return (x_train, y_train, x_val, y_val, x_test, y_test, cfg["in_channels"])
 
 
