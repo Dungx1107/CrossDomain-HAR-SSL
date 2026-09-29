@@ -96,8 +96,15 @@ def train_and_eval_finetune(
 
     # 3. NẠP TRỌNG SỐ PRETRAINED VÀO BACKBONE
     checkpoint = torch.load(encoder_ckpt_path, map_location=target_device, weights_only=True)
-    encoder_dict = checkpoint["encoder"] if isinstance(checkpoint, dict) and "encoder" in checkpoint else checkpoint
-
+    if isinstance(checkpoint, dict):
+        if "encoder_state_dict" in checkpoint:
+            encoder_dict = checkpoint["encoder_state_dict"]
+        elif "encoder" in checkpoint:
+            encoder_dict = checkpoint["encoder"]
+        else:
+            encoder_dict = checkpoint
+    else:
+        encoder_dict = checkpoint
     model.encoder.load_state_dict(encoder_dict, strict=True)
     protocol_name = "LINEAR PROBING" if freeze_backbone else "FULL FINE-TUNING"
 

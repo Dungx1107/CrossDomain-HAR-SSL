@@ -129,7 +129,7 @@ class MaskedSSLTrainer:
             if val_loss < self.best_loss:
                 self.best_loss = val_loss
                 encoder_to_save = getattr(self.model, "encoder", self.model)
-                torch.save({"encoder_state_dict": encoder_to_save.state_dict()}, self.checkpoint_path)
+                torch.save(encoder_to_save.state_dict(), self.checkpoint_path)
                 print(f"⭐ Lưu Best Encoder Checkpoint tại: {self.checkpoint_path} (Loss: {val_loss:.5f})")
 
         # Ghi log lịch sử CSV
