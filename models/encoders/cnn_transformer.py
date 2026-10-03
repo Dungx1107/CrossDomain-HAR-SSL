@@ -43,16 +43,16 @@ class CNNTransformerEncoder(nn.Module):
             nn.Conv1d(in_channels, 64, kernel_size=7, stride=1, padding=3, bias=False),
             nn.BatchNorm1d(64),
             nn.GELU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),  # (B, 64, 64)
+            # nn.MaxPool1d(kernel_size=2, stride=2),  # (B, 64, 64)
 
             nn.Conv1d(64, d_model, kernel_size=5, stride=1, padding=2, bias=False),
             nn.BatchNorm1d(d_model),
             nn.GELU(),
-            nn.MaxPool1d(kernel_size=2, stride=2)  # (B, 128, 32)
+            # nn.MaxPool1d(kernel_size=2, stride=2)  # (B, 128, 32)
         )
 
         # 2. Positional Encoding
-        self.pos_encoder = SinusoidalPositionalEncoding(d_model=d_model, max_len=64)
+        self.pos_encoder = SinusoidalPositionalEncoding(d_model=d_model, max_len=128)
         self.dropout = nn.Dropout(p=dropout)
 
         # 3. Transformer Encoder (Multi-Head Self-Attention)

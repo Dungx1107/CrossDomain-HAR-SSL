@@ -20,7 +20,7 @@ IGNORE_DIRS = {
 
 IGNORE_FILES = {
     "*.pyc",
-    "*.pt",
+    # "*.pt",
     "*.pth",
     "*.png",
     "*.json"

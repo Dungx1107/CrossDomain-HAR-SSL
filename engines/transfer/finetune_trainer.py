@@ -45,6 +45,9 @@ from models.encoders.cnn1d import StandardSensorEncoder1D
 from models.heads.classifier import ClassifierHead
 from utils.complexity import measure_model_complexity
 
+LINEAR_PROBING = "LINEAR PROBING"
+FULL_FINE_TUNING = "FULL FINE-TUNING"
+
 
 def train_and_eval_finetune(
         train_loader: DataLoader,
@@ -96,6 +99,7 @@ def train_and_eval_finetune(
 
     # 3. NẠP TRỌNG SỐ PRETRAINED VÀO BACKBONE
     checkpoint = torch.load(encoder_ckpt_path, map_location=target_device, weights_only=True)
+
     if isinstance(checkpoint, dict):
         if "encoder_state_dict" in checkpoint:
             encoder_dict = checkpoint["encoder_state_dict"]
@@ -105,8 +109,9 @@ def train_and_eval_finetune(
             encoder_dict = checkpoint
     else:
         encoder_dict = checkpoint
+
     model.encoder.load_state_dict(encoder_dict, strict=True)
-    protocol_name = "LINEAR PROBING" if freeze_backbone else "FULL FINE-TUNING"
+    protocol_name = LINEAR_PROBING if freeze_backbone else FULL_FINE_TUNING
 
     print("=" * 80)
     print(f"🚀 THIẾT LẬP THỰC NGHIỆM: {protocol_name}")
@@ -151,17 +156,26 @@ def train_and_eval_finetune(
             input_size=input_shape,
             device=torch.device(target_device)
         )
-        total_params = complexity_info.get("total_params", total_params)[cite: 7]
-        trainable_params = complexity_info.get("trainable_params", trainable_params)[cite: 7]
-        macs_val = complexity_info.get("macs", "N/A")[cite: 7]
-        flops_val = complexity_info.get("flops", "N/A")[cite: 7]
-        model_size_mb = complexity_info.get("model_size_mb", model_size_mb)[cite: 7]
-    except Exception:
-        pass
+        if "total_params" in complexity_info:
+            total_params = complexity_info["total_params"]
+        if "trainable_params" in complexity_info:
+            trainable_params = complexity_info["trainable_params"]
+        if "macs" in complexity_info:
+            macs_val = complexity_info["macs"]
+        if "flops" in complexity_info:
+            flops_val = complexity_info["flops"]
+        if "model_size_mb" in complexity_info:
+            model_size_mb = complexity_info["model_size_mb"]
+
+    except ImportError as e:
+        print(f"⚠️ Không thể đo FLOPs do thiếu thư viện: {e}")
+    except (RuntimeError, ValueError) as e:
+        print(f"⚠️ Không thể đo FLOPs do lỗi tính toán: {e}")
 
     print(f"📊 Độ phức tạp mô hình:")
     print(f"   - Tổng số tham số (Total Params): {total_params:,}")
-    print(f"   - Tham số cập nhật (Trainable)  : {trainable_params:,} ({(trainable_params / max(total_params, 1)) * 100:.2f}%)")
+    print(
+        f"   - Tham số cập nhật (Trainable)  : {trainable_params:,} ({(trainable_params / max(total_params, 1)) * 100:.2f}%)")
     print(f"   - Khối lượng tính toán          : {macs_val} MACs | {flops_val} FLOPs")
     print(f"   - Dung lượng RAM/VRAM           : {model_size_mb} MB")
     print("=" * 80)
