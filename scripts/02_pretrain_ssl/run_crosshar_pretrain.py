@@ -29,7 +29,7 @@ parser.add_argument("--backbone", type=str, default="cnn_transformer",
                     choices=["standard", "cnn_transformer"],
                     help="Loại backbone encoder")
 parser.add_argument("--epochs", type=int, default=60, help="Tổng số epoch pretrain")
-parser.add_argument("--warmup_msm_epochs", type=int, default=15, 
+parser.add_argument("--warmup_msm_epochs", type=int, default=15,
                     help="Số epoch Giai đoạn A chỉ train L_m (Reconstruction)")
 parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
 parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
@@ -130,7 +130,7 @@ def main():
         )
         val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
 
-        save_dir = PROJECT_ROOT / "checkpoints" / "crosshar_pretrain" / ds_name / args.backbone
+        save_dir = PROJECT_ROOT / "checkpoints" / "ssl_pretrain" / "crosshar" / ds_name / args.backbone
         ckpt_name = f"crosshar_{args.backbone}_encoder_pretrained_{ds_name}.pt"
 
         train_crosshar_sequential(

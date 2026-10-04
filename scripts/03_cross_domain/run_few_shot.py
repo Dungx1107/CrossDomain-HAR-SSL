@@ -56,7 +56,7 @@ DEFAULT_TRANSFER_PAIRS = [
 ]
 
 parser = argparse.ArgumentParser(description="Few-shot Cross-Domain HAR Benchmark")
-parser.add_argument("--method", type=str, default="tstcc", choices=["tstcc", "prototype", "masked"])
+parser.add_argument("--method", type=str, default="crosshar", choices=["tstcc", "prototype", "crosshar"])
 parser.add_argument("--backbone", type=str, default="standard")
 parser.add_argument("--epochs", type=int, default=40)
 parser.add_argument("--batch_size", type=int, default=16)
@@ -76,7 +76,7 @@ if args.pairs:
 else:
     SELECTED_PAIRS = DEFAULT_TRANSFER_PAIRS
 
-METHOD_TO_FOLDER = {"tstcc": "contrastive", "prototype": "prototype", "masked": "masked"}
+METHOD_TO_FOLDER = {"tstcc": "contrastive", "prototype": "prototype", "crosshar": "crosshar"}
 COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
 NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -140,7 +140,6 @@ def sample_k_shot_train_val(x_pool, y_pool, k, seed):
 
 def run_few_shot_for_pair(source_domain: str, target_domain: str):
     print(f"\n{'=' * 90}\n🔄 FEW-SHOT: [{source_domain.upper()}] ➔ [{target_domain.upper()}]\n{'=' * 90}")
-
     ssl_folder = METHOD_TO_FOLDER.get(args.method, args.method)
     source_ckpt = (PROJECT_ROOT / "checkpoints/ssl_pretrain" / ssl_folder /
                    source_domain / args.backbone /
