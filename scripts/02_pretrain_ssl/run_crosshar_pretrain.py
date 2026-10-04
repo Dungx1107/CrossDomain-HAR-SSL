@@ -23,7 +23,7 @@ from datasets.crosshar_dataset import Physical3DAugmentation, CrossHARPretrainDa
 from engines.pretrain_ssl.crosshar_sequential_trainer import train_crosshar_sequential
 
 parser = argparse.ArgumentParser(description="CrossHAR Hierarchical Pretrain Runner")
-parser.add_argument("--datasets", nargs="+", default=["motionsense", "uci_har"],
+parser.add_argument("--datasets", nargs="+", default=["motionsense"],
                     help="Danh sách dataset nguồn cần pretrain")
 parser.add_argument("--backbone", type=str, default="cnn_transformer",
                     choices=["standard", "cnn_transformer"],
@@ -64,13 +64,13 @@ SOURCE_DATASET_MAP = {
 }
 
 
-def load_90_percent_unlabeled(train_path: Path, seed: int = 42) -> torch.Tensor:
+def load_all_unlabeled(train_path: Path) -> torch.Tensor:
     data = torch.load(train_path, map_location="cpu", weights_only=True)
     X = data["samples"]
     y = data["labels"].squeeze()
 
     mask = (y >= 0) & (y < 5)
-    X, y = X[mask], y[mask]
+    X = X[mask]
 
     if not isinstance(X, torch.Tensor):
         X = torch.tensor(X, dtype=torch.float32)
@@ -80,9 +80,7 @@ def load_90_percent_unlabeled(train_path: Path, seed: int = 42) -> torch.Tensor:
     if X.ndim == 3 and X.shape[1] == 128 and X.shape[2] == 6:
         X = X.permute(0, 2, 1)
 
-    sss = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=seed)
-    train_idx, _ = next(sss.split(X, y.numpy()))
-    return X[train_idx]
+    return X
 
 
 def load_val_tensor(val_path: Path) -> torch.Tensor:
@@ -113,15 +111,15 @@ def main():
         cfg = SOURCE_DATASET_MAP[ds_name]
         print(f"\n📂 Đang chuẩn bị dữ liệu miền nguồn: [{ds_name.upper()}]")
 
-        X_train_90 = load_90_percent_unlabeled(cfg["train"], seed=args.seed)
+        X_train = load_all_unlabeled(cfg["train"])
         X_val = load_val_tensor(cfg["val"])
-        print(f"   - Mẫu 90% train gốc: {X_train_90.shape[0]}")
+        print(f"   - Mẫu 90% train gốc: {X_train.shape[0]}")
 
         if args.expand_6x:
-            X_train_pretrain = aug3d.expand_dataset_6x(X_train_90)
+            X_train_pretrain = aug3d.expand_dataset_6x(X_train)
             print(f"   - Sau mở rộng 6x ma trận hoán vị 3D: {X_train_pretrain.shape[0]} mẫu")
         else:
-            X_train_pretrain = X_train_90
+            X_train_pretrain = X_train
 
         train_ds = CrossHARPretrainDataset(X_train_pretrain)
         val_ds = CrossHARPretrainDataset(X_val)
