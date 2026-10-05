@@ -1,6 +1,7 @@
 """
 ===============================================================================
 CLI SCRIPT: PRETRAIN CROSSHAR CHUẨN (3D PERMUTATION 6X + SEQUENTIAL UPDATING)
+NẠP TRỌN VẸN 100% DỮ LIỆU MIỀN NGUỒN (dataset_all.pt)
 ===============================================================================
 """
 
@@ -9,7 +10,6 @@ import argparse
 from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
-from sklearn.model_selection import StratifiedShuffleSplit
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -18,54 +18,34 @@ if str(PROJECT_ROOT) not in sys.path:
 from config.motionsense_config import MotionSenseConfig
 from config.uci_har_config import UCIHARConfig
 from config.hhar_config import HHARConfig
-
 from datasets.crosshar_dataset import Physical3DAugmentation, CrossHARPretrainDataset
 from engines.pretrain_ssl.crosshar_sequential_trainer import train_crosshar_sequential
 
 parser = argparse.ArgumentParser(description="CrossHAR Hierarchical Pretrain Runner")
-parser.add_argument("--datasets", nargs="+", default=["motionsense"],
-                    help="Danh sách dataset nguồn cần pretrain")
-parser.add_argument("--backbone", type=str, default="cnn_transformer",
-                    choices=["standard", "cnn_transformer"],
-                    help="Loại backbone encoder")
-parser.add_argument("--epochs", type=int, default=60, help="Tổng số epoch pretrain")
-parser.add_argument("--warmup_msm_epochs", type=int, default=15,
-                    help="Số epoch Giai đoạn A chỉ train L_m (Reconstruction)")
-parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
-parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
-parser.add_argument("--seed", type=int, default=42, help="Seed ngẫu nhiên")
-parser.add_argument("--expand_6x", action="store_true", default=True,
-                    help="Mở rộng 6 lần dữ liệu bằng 6 ma trận hoán vị 3D")
+parser.add_argument("--datasets", nargs="+", default=["motionsense"])
+parser.add_argument("--backbone", type=str, default="cnn_transformer", choices=["standard", "cnn_transformer"])
+parser.add_argument("--epochs", type=int, default=60)
+parser.add_argument("--warmup_msm_epochs", type=int, default=15)
+parser.add_argument("--batch_size", type=int, default=64)
+parser.add_argument("--lr", type=float, default=5e-4)
+parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--expand_6x", action="store_true", default=True)
 args = parser.parse_args()
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 SOURCE_DATASET_MAP = {
-    "motionsense": {
-        "train": Path(MotionSenseConfig.PROCESSED_TRAIN_PATH),
-        "val": Path(MotionSenseConfig.PROCESSED_VAL_PATH),
-        "in_channels": int(MotionSenseConfig.IN_CHANNELS)
-    },
-    "uci_har": {
-        "train": Path(UCIHARConfig.PROCESSED_TRAIN_PATH),
-        "val": Path(UCIHARConfig.PROCESSED_VAL_PATH),
-        "in_channels": int(UCIHARConfig.IN_CHANNELS)
-    },
-    "hhar_phone": {
-        "train": HHARConfig.PROCESSED_DIR_PHONE / "train.pt",
-        "val": HHARConfig.PROCESSED_DIR_PHONE / "val.pt",
-        "in_channels": int(HHARConfig.IN_CHANNELS)
-    },
-    "hhar_watch": {
-        "train": HHARConfig.PROCESSED_DIR_WATCH / "train.pt",
-        "val": HHARConfig.PROCESSED_DIR_WATCH / "val.pt",
-        "in_channels": int(HHARConfig.IN_CHANNELS)
-    }
+    "motionsense": {"all": Path(MotionSenseConfig.PROCESSED_DIR) / "dataset_all.pt", "in_channels": int(MotionSenseConfig.IN_CHANNELS)},
+    "uci_har": {"all": Path(UCIHARConfig.PROCESSED_DIR) / "dataset_all.pt", "in_channels": int(UCIHARConfig.IN_CHANNELS)},
+    "hhar_phone": {"all": HHARConfig.PROCESSED_DIR_PHONE / "dataset_all.pt", "in_channels": int(HHARConfig.IN_CHANNELS)},
+    "hhar_watch": {"all": HHARConfig.PROCESSED_DIR_WATCH / "dataset_all.pt", "in_channels": int(HHARConfig.IN_CHANNELS)}
 }
 
+def load_dataset_all_tensor(file_path: Path) -> torch.Tensor:
+    if not file_path.exists():
+        raise FileNotFoundError(f"❌ Không tìm thấy file dữ liệu toàn phần: {file_path}")
 
-def load_all_unlabeled(train_path: Path) -> torch.Tensor:
-    data = torch.load(train_path, map_location="cpu", weights_only=True)
+    data = torch.load(file_path, map_location="cpu", weights_only=True)
     X = data["samples"]
     y = data["labels"].squeeze()
 
@@ -82,26 +62,14 @@ def load_all_unlabeled(train_path: Path) -> torch.Tensor:
 
     return X
 
-
-def load_val_tensor(val_path: Path) -> torch.Tensor:
-    data = torch.load(val_path, map_location="cpu", weights_only=True)
-    X = data["samples"]
-    y = data["labels"].squeeze()
-    mask = (y >= 0) & (y < 5)
-    X = X[mask].float()
-    if X.ndim == 3 and X.shape[1] == 128 and X.shape[2] == 6:
-        X = X.permute(0, 2, 1)
-    return X
-
-
 def main():
     print("=" * 90)
-    print("🌟 BẮT ĐẦU CHƯƠNG TRÌNH PRETRAIN CROSSHAR CHUẨN")
+    print("🌟 BẮT ĐẦU CHƯƠNG TRÌNH PRETRAIN CROSSHAR CHUẨN (100% DATASET_ALL)")
     print(f"🔧 Backbone: {args.backbone.upper()} | Tổng Epochs: {args.epochs} | Thiết bị: {DEVICE.upper()}")
-    print(f"🎯 Thiết lập: Mở rộng 3D 6X = {args.expand_6x} | Warmup MSM = {args.warmup_msm_epochs} epochs")
     print("=" * 90)
 
     aug3d = Physical3DAugmentation()
+    torch.manual_seed(args.seed)
 
     for ds_name in args.datasets:
         if ds_name not in SOURCE_DATASET_MAP:
@@ -109,11 +77,14 @@ def main():
             continue
 
         cfg = SOURCE_DATASET_MAP[ds_name]
-        print(f"\n📂 Đang chuẩn bị dữ liệu miền nguồn: [{ds_name.upper()}]")
+        print(f"\n📂 Đang nạp 100% dữ liệu miền nguồn [{ds_name.upper()}]: {cfg['all']}")
 
-        X_train = load_all_unlabeled(cfg["train"])
-        X_val = load_val_tensor(cfg["val"])
-        print(f"   - Mẫu train gốc: {X_train.shape[0]}")
+        X_all = load_dataset_all_tensor(cfg["all"])
+        print(f"   - Tổng số mẫu 100% gốc: {X_all.shape[0]}")
+
+        # Train lấy trọn vẹn 100%, Val dùng chính tập này (chưa expand) để theo dõi loss tiến trình
+        X_train = X_all
+        X_val = X_all
 
         if args.expand_6x:
             X_train_pretrain = aug3d.expand_dataset_6x(X_train)
@@ -145,9 +116,6 @@ def main():
             learning_rate=args.lr,
             device=DEVICE
         )
-
-    print("\n🎉 HOÀN TẤT PRETRAIN CROSSHAR CHO CÁC MIỀN ĐÃ CHỌN!")
-
 
 if __name__ == "__main__":
     main()

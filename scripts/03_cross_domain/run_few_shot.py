@@ -1,21 +1,18 @@
 """
 ===============================================================================
-SCRIPT: FEW-SHOT CROSS-DOMAIN ADAPTATION
-- k <= 5: Linear Probing
-- k >= 10: Full Fine-Tuning
-- Support (Train) & Query (Val) được rút ngẫu nhiên k mẫu mỗi lớp từ train.pt
-- Test Set giữ nguyên 100% từ test.pt
-- Tự động tách file results.json riêng cho từng k-shot và merge an toàn vào file tổng.
+SCRIPT: FEW-SHOT CROSS-DOMAIN ADAPTATION (CHUYÊN SÂU & TỐI ƯU LƯU TRỮ)
+- Không lưu file trọng số finetune (tránh rác bộ nhớ).
+- Tính toán đầy đủ Precision, Recall, F1, Cohen's Kappa, Per-class.
+- Ghi nhận siêu dữ liệu (Metadata): số tham số, cấu hình epoch, batch size.
 ===============================================================================
 """
 
-import sys
-import json
-import argparse
+import sys, json, argparse
 from pathlib import Path
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
+from sklearn.metrics import classification_report, cohen_kappa_score, confusion_matrix
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
@@ -25,229 +22,191 @@ if str(PROJECT_ROOT) not in sys.path:
 from config.uci_har_config import UCIHARConfig
 from config.motionsense_config import MotionSenseConfig
 from config.hhar_config import HHARConfig
-
 from engines.transfer.finetune_trainer import train_and_eval_finetune
 from engines.evaluation.evaluator import ModelEvaluator
 from models.encoders.builder import build_encoder
 
-# CẤU HÌNH CƠ BẢN
-DEFAULT_TRANSFER_PAIRS = [
-    # 1. Cặp nội bộ Phone ↔ Phone (Cùng vị trí đeo túi/thắt lưng)
-    ("uci_har", "motionsense"),
-    ("motionsense", "uci_har"),
-
-    # 2. Cặp nội bộ HHAR Phone ↔ Watch (Chéo vị trí)
-    ("hhar_phone", "hhar_watch"),
-    ("hhar_watch", "hhar_phone"),
-
-    # 3. Chuyển giao từ Phone sang Watch (Cross-position)
-    ("motionsense", "hhar_watch"),
-    ("uci_har", "hhar_watch"),
-
-    # 4. Chuyển giao giữa các thiết bị Phone khác bộ dữ liệu (Same-position)
-    ("motionsense", "hhar_phone"),
-    ("uci_har", "hhar_phone"),
-    ("hhar_phone", "motionsense"),
-    ("hhar_phone", "uci_har"),
-
-    # 5. Chuyển giao từ Watch sang Phone khác bộ dữ liệu (Cross-position)
-    ("hhar_watch", "motionsense"),
-    ("hhar_watch", "uci_har"),
-]
-
-parser = argparse.ArgumentParser(description="Few-shot Cross-Domain HAR Benchmark")
-parser.add_argument("--method", type=str, default="crosshar", choices=["tstcc", "prototype", "crosshar"])
-parser.add_argument("--backbone", type=str, default="standard")
+parser = argparse.ArgumentParser(description="Few-shot Cross-Domain HAR")
+parser.add_argument("--method", type=str, default="crosshar")
+parser.add_argument("--backbone", type=str, default="cnn_transformer")
 parser.add_argument("--epochs", type=int, default=40)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--seeds", nargs="+", type=int, default=[42, 100, 2024, 7, 99])
-parser.add_argument("--k_shots", nargs="+", type=int, default=[1, 5, 10, 20, 30],
-                    help="Danh sách giá trị k (vd: 1 5 10 20 30)")
-parser.add_argument("--pairs", nargs="+", type=str, default=None)
+parser.add_argument("--k_shots", nargs="+", type=int, default=[1, 5, 10, 20])
+parser.add_argument("--pairs", nargs="+", type=str, required=True)
 args = parser.parse_args()
 
-SEEDS = args.seeds
-K_SHOTS = args.k_shots
-EPOCHS = args.epochs
-BATCH_SIZE = args.batch_size
-
-if args.pairs:
-    SELECTED_PAIRS = [tuple(p.split(":")) for p in args.pairs]
-else:
-    SELECTED_PAIRS = DEFAULT_TRANSFER_PAIRS
-
-METHOD_TO_FOLDER = {"tstcc": "contrastive", "prototype": "prototype", "crosshar": "crosshar"}
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']
 NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-PROTOCOLS = [
-    {"name": "linear_probing", "freeze_backbone": True},
-    {"name": "full_finetuning", "freeze_backbone": False}
-]
 
 DOMAIN_DATA_PATHS = {
-    "motionsense": {"train_path": Path(MotionSenseConfig.PROCESSED_TRAIN_PATH),
-                    "test_path": Path(MotionSenseConfig.PROCESSED_TEST_PATH),
-                    "in_channels": int(MotionSenseConfig.IN_CHANNELS)},
-    "uci_har": {"train_path": Path(UCIHARConfig.PROCESSED_TRAIN_PATH),
-                "test_path": Path(UCIHARConfig.PROCESSED_TEST_PATH),
-                "in_channels": int(UCIHARConfig.IN_CHANNELS)},
-    "hhar_phone": {"train_path": HHARConfig.PROCESSED_DIR_PHONE / "train.pt",
-                   "test_path": HHARConfig.PROCESSED_DIR_PHONE / "test.pt",
-                   "in_channels": int(HHARConfig.IN_CHANNELS)},
-    "hhar_watch": {"train_path": HHARConfig.PROCESSED_DIR_WATCH / "train.pt",
-                   "test_path": HHARConfig.PROCESSED_DIR_WATCH / "test.pt",
-                   "in_channels": int(HHARConfig.IN_CHANNELS)},
+    "motionsense": {"train": Path(MotionSenseConfig.PROCESSED_TRAIN_PATH),
+                    "val": Path(MotionSenseConfig.PROCESSED_VAL_PATH),
+                    "test": Path(MotionSenseConfig.PROCESSED_TEST_PATH), "ch": 6},
+    "uci_har": {"train": Path(UCIHARConfig.PROCESSED_TRAIN_PATH), "val": Path(UCIHARConfig.PROCESSED_VAL_PATH),
+                "test": Path(UCIHARConfig.PROCESSED_TEST_PATH), "ch": 6},
+    "hhar_phone": {"train": HHARConfig.PROCESSED_DIR_PHONE / "train.pt",
+                   "val": HHARConfig.PROCESSED_DIR_PHONE / "val.pt", "test": HHARConfig.PROCESSED_DIR_PHONE / "test.pt",
+                   "ch": 6},
+    "hhar_watch": {"train": HHARConfig.PROCESSED_DIR_WATCH / "train.pt",
+                   "val": HHARConfig.PROCESSED_DIR_WATCH / "val.pt", "test": HHARConfig.PROCESSED_DIR_WATCH / "test.pt",
+                   "ch": 6},
 }
 
 
-def load_and_prepare_target_data(domain_name: str):
-    cfg = DOMAIN_DATA_PATHS[domain_name]
-    raw_train = torch.load(cfg["train_path"], map_location="cpu", weights_only=True)
-    raw_test = torch.load(cfg["test_path"], map_location="cpu", weights_only=True)
-
-    def process_tensor(samples, labels):
-        mask = (labels >= 0) & (labels < 5)
-        s, l = samples[mask].float(), labels[mask].long()
-        if s.ndim == 3 and s.shape[1] == 128 and s.shape[2] == 6:
-            s = s.permute(0, 2, 1)
-        return s, l
-
-    x_pool, y_pool = process_tensor(raw_train["samples"], raw_train["labels"])
-    x_test, y_test = process_tensor(raw_test["samples"], raw_test["labels"])
-
-    return x_pool, y_pool, x_test, y_test, cfg["in_channels"]
+def load_data(path):
+    d = torch.load(path, map_location="cpu", weights_only=True)
+    mask = (d["labels"].squeeze() >= 0) & (d["labels"].squeeze() < 5)
+    s, l = d["samples"][mask].float(), d["labels"].squeeze()[mask].long()
+    if s.ndim == 3 and s.shape[1] == 128 and s.shape[2] == 6: s = s.permute(0, 2, 1)
+    return s, l
 
 
-def sample_k_shot_train_val(x_pool, y_pool, k, seed):
-    """Trích xuất đúng k mẫu cho Train và k mẫu khác cho Val từ Target Pool."""
+def sample_k_shot(X, y, k, seed):
     rng = np.random.default_rng(seed)
-    classes = torch.unique(y_pool).tolist()
-
-    train_idx, val_idx = [], []
-    for c in classes:
-        c_idx = torch.where(y_pool == c)[0].numpy()
+    idx_list = []
+    for c in range(NUM_COMMON_CLASSES):
+        c_idx = torch.where(y == c)[0].numpy()
+        if len(c_idx) < k: raise ValueError(f"Không đủ mẫu cho lớp {c}. Yêu cầu {k}, chỉ có {len(c_idx)}")
         rng.shuffle(c_idx)
-
-        if len(c_idx) < 2 * k:
-            raise ValueError(f"Không đủ mẫu cho lớp {c}. Cần {2 * k}, chỉ có {len(c_idx)}")
-
-        train_idx.extend(c_idx[:k])
-        val_idx.extend(c_idx[k:2 * k])
-
-    return x_pool[train_idx], y_pool[train_idx], x_pool[val_idx], y_pool[val_idx]
+        idx_list.extend(c_idx[:k])
+    return X[idx_list], y[idx_list]
 
 
-def run_few_shot_for_pair(source_domain: str, target_domain: str):
-    print(f"\n{'=' * 90}\n🔄 FEW-SHOT: [{source_domain.upper()}] ➔ [{target_domain.upper()}]\n{'=' * 90}")
-    ssl_folder = METHOD_TO_FOLDER.get(args.method, args.method)
-    source_ckpt = (PROJECT_ROOT / "checkpoints/ssl_pretrain" / ssl_folder /
-                   source_domain / args.backbone /
-                   f"{args.method}_{args.backbone}_encoder_pretrained_{source_domain}.pt")
+def get_predictions(model, loader, device):
+    model.eval()
+    all_preds, all_labels = [], []
+    with torch.no_grad():
+        for x, y in loader:
+            logits = model(x.to(device))
+            all_preds.extend(torch.argmax(logits, dim=1).cpu().numpy())
+            all_labels.extend(y.numpy())
+    return np.array(all_labels), np.array(all_preds)
 
-    x_pool, y_pool, x_test, y_test, in_channels = load_and_prepare_target_data(target_domain)
 
-    base_save_dir = (PROJECT_ROOT / "checkpoints" / "cross_domain_fewshot" / args.method /
-                     args.backbone / f"{source_domain}_to_{target_domain}")
+def run_few_shot(src, tgt):
+    print(f"\n{'=' * 70}\n🔄 FEW-SHOT: [{src.upper()}] ➔ [{tgt.upper()}]\n{'=' * 70}")
+    cfg = DOMAIN_DATA_PATHS[tgt]
+
+    X_tr, y_tr = load_data(cfg["train"])
+    X_v, y_v = load_data(cfg["val"])
+    X_ts, y_ts = load_data(cfg["test"])
+
+    source_ckpt = PROJECT_ROOT / "checkpoints/ssl_pretrain/crosshar" / src / args.backbone / f"crosshar_{args.backbone}_encoder_pretrained_{src}.pt"
+    if not source_ckpt.exists(): raise FileNotFoundError(f"❌ Thiếu checkpoint pretrain: {source_ckpt}")
+
+    test_loader = DataLoader(TensorDataset(X_ts, y_ts), batch_size=64, shuffle=False)
+    base_save_dir = PROJECT_ROOT / "checkpoints/cross_domain_fewshot/crosshar" / args.backbone / f"{src}_to_{tgt}"
     base_save_dir.mkdir(parents=True, exist_ok=True)
-
     evaluator = ModelEvaluator(class_names=COMMON_CLASS_NAMES, device=torch.device(DEVICE))
-    test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=64, shuffle=False)
 
-    summary = {}
+    # Đếm số lượng tham số của mô hình Encoder
+    dummy_encoder = build_encoder(args.backbone, cfg["ch"])
+    encoder_params = sum(p.numel() for p in dummy_encoder.parameters() if p.requires_grad)
 
-    for k in K_SHOTS:
-        summary[f"{k}_shot"] = {}
-        for proto in PROTOCOLS:
-            proto_name = proto["name"]
-            freeze_bb = proto["freeze_backbone"]
+    # 1. Ghi Meta-data file (Cấu hình tổng quan của cặp chạy này)
+    metadata = {
+        "experiment_type": "few_shot_cross_domain",
+        "source_domain": src,
+        "target_domain": tgt,
+        "pretrain_method": args.method,
+        "backbone": args.backbone,
+        "pretrain_checkpoint_loaded": str(source_ckpt),
+        "encoder_trainable_parameters": encoder_params,
+        "k_shots_tested": args.k_shots,
+        "seeds": args.seeds,
+        "finetune_epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "target_classes": COMMON_CLASS_NAMES
+    }
+    with open(base_save_dir / "experiment_metadata.json", "w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=4)
 
-            print(f"\n▶ {k}-SHOT | CHIẾN LƯỢC: {proto_name.upper()} | Freeze: {freeze_bb}")
+    for k in args.k_shots:
+        for proto in [{"name": "linear_probing", "frz": True}, {"name": "full_finetuning", "frz": False}]:
+            print(f"\n▶ TIẾN TRÌNH: {k}-SHOT | {proto['name'].upper()}")
 
-            k_save_dir = base_save_dir / f"{k}_shot" / proto_name
+            k_save_dir = base_save_dir / f"{k}_shot" / proto["name"]
             k_save_dir.mkdir(parents=True, exist_ok=True)
 
             f1_list, acc_list = [], []
-            best_run_f1 = -1.0
-            best_run_model = None
+            best_f1, best_model = -1.0, None
+            detailed_results = {}
 
-            for seed in SEEDS:
+            for seed in args.seeds:
                 torch.manual_seed(seed)
+                x_sub_tr, y_sub_tr = sample_k_shot(X_tr, y_tr, k, seed)
+                x_sub_val, y_sub_val = sample_k_shot(X_v, y_v, k, seed)
 
-                x_train, y_train, x_val, y_val = sample_k_shot_train_val(x_pool, y_pool, k, seed)
+                tr_loader = DataLoader(TensorDataset(x_sub_tr, y_sub_tr),
+                                       batch_size=min(args.batch_size, len(x_sub_tr)), shuffle=True)
+                val_loader = DataLoader(TensorDataset(x_sub_val, y_sub_val),
+                                        batch_size=min(args.batch_size, len(x_sub_val)), shuffle=False)
 
-                train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=min(BATCH_SIZE, len(x_train)),
-                                          shuffle=True)
-                val_loader = DataLoader(TensorDataset(x_val, y_val), batch_size=min(BATCH_SIZE, len(x_val)),
-                                        shuffle=False)
-
-                acc, f1, model, _ = train_and_eval_finetune(
-                    train_loader=train_loader,
+                _, _, model, _ = train_and_eval_finetune(
+                    train_loader=tr_loader,
                     val_loader=val_loader,
                     test_loader=test_loader,
                     encoder_checkpoint_path=source_ckpt,
-                    encoder=build_encoder(backbone_type=args.backbone, in_channels=in_channels),
+                    encoder=build_encoder(args.backbone, cfg["ch"]),
                     num_classes=NUM_COMMON_CLASSES,
-                    in_channels=in_channels,
-                    epochs=EPOCHS,
-                    freeze_backbone=freeze_bb,
+                    in_channels=cfg["ch"],
+                    epochs=args.epochs,
+                    freeze_backbone=proto["frz"],
                     device=DEVICE
                 )
 
-                f1_list.append(f1)
+                # Suy diễn để lấy dự đoán thực tế tính metrics chuyên sâu
+                y_true, y_pred = get_predictions(model, test_loader, DEVICE)
+
+                report = classification_report(y_true, y_pred, target_names=COMMON_CLASS_NAMES, output_dict=True,
+                                               zero_division=0)
+                kappa = cohen_kappa_score(y_true, y_pred)
+
+                acc = report["accuracy"] * 100
+                f1 = report["macro avg"]["f1-score"] * 100
+
+                f1_list.append(f1);
                 acc_list.append(acc)
 
-                if f1 > best_run_f1:
-                    best_run_f1 = f1
-                    best_run_model = model
+                detailed_results[f"seed_{seed}"] = {
+                    "accuracy": round(acc, 2),
+                    "macro_f1": round(f1, 2),
+                    "macro_precision": round(report["macro avg"]["precision"] * 100, 2),
+                    "macro_recall": round(report["macro avg"]["recall"] * 100, 2),
+                    "cohen_kappa": round(kappa, 4),
+                    "per_class_f1": {cls: round(report[cls]["f1-score"] * 100, 2) for cls in COMMON_CLASS_NAMES},
+                    "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
+                }
 
-                print(f"   [Seed {seed:4d}] -> Acc: {acc:5.2f}% | F1: {f1:5.2f}%")
+                if f1 > best_f1:
+                    best_f1 = f1
+                    best_model = model
 
-            mean_f1, std_f1 = float(np.mean(f1_list)), float(np.std(f1_list))
-            mean_acc, std_acc = float(np.mean(acc_list)), float(np.std(acc_list))
+                print(f"   [Seed {seed:<4}] Acc: {acc:5.2f}% | F1: {f1:5.2f}%")
 
-            if best_run_model:
-                torch.save(best_run_model.state_dict(), k_save_dir / "best_model.pt")
-                evaluator.evaluate(best_run_model, test_loader, plot_save_path=str(k_save_dir / "confusion_matrix.png"))
+            # Chỉ xuất hình ảnh Confusion Matrix của lần chạy tốt nhất (KHÔNG lưu mô hình .pt)
+            if best_model:
+                evaluator.evaluate(best_model, test_loader,
+                                   plot_save_path=str(k_save_dir / "best_confusion_matrix.png"))
 
-            summary[f"{k}_shot"][proto_name] = {
-                "macro_f1": f"{mean_f1:.2f} ± {std_f1:.2f}",
-                "accuracy": f"{mean_acc:.2f} ± {std_acc:.2f}"
+            # Ghi file summary rút gọn
+            summary_data = {
+                "accuracy": f"{np.mean(acc_list):.2f} ± {np.std(acc_list):.2f}",
+                "macro_f1": f"{np.mean(f1_list):.2f} ± {np.std(f1_list):.2f}"
             }
-            print(f"⭐ TỔNG KẾT {k}-SHOT: F1 = {mean_f1:.2f} ± {std_f1:.2f}% | Acc = {mean_acc:.2f} ± {std_acc:.2f}%")
+            with open(k_save_dir / "summary_metrics.json", "w", encoding="utf-8") as f:
+                json.dump(summary_data, f, indent=4)
 
-            # 1. LƯU RIÊNG TỪNG K-SHOT NGAY SAU MỖI CHIẾN LƯỢC (Chống mất dữ liệu và chống ghi đè)
-            k_shot_file = base_save_dir / f"{k}_shot" / "results.json"
-            k_shot_data = {}
-            if k_shot_file.exists():
-                try:
-                    with open(k_shot_file, "r", encoding="utf-8") as f:
-                        k_shot_data = json.load(f)
-                except Exception:
-                    k_shot_data = {}
-            k_shot_data[proto_name] = summary[f"{k}_shot"][proto_name]
-            with open(k_shot_file, "w", encoding="utf-8") as f:
-                json.dump(k_shot_data, f, indent=4)
+            # Ghi file chi tiết chứa Precision/Recall/Kappa
+            with open(k_save_dir / "detailed_results.json", "w", encoding="utf-8") as f:
+                json.dump(detailed_results, f, indent=4)
 
-    # 2. HỢP NHẤT TẤT CẢ VÀO FILE TỔNG (few_shot_results.json)
-    results_json_path = base_save_dir / "few_shot_results.json"
-    existing_summary = {}
-    if results_json_path.exists():
-        try:
-            with open(results_json_path, "r", encoding="utf-8") as f:
-                existing_summary = json.load(f)
-        except Exception:
-            existing_summary = {}
-
-    for k_key, v_dict in summary.items():
-        if k_key not in existing_summary:
-            existing_summary[k_key] = {}
-        existing_summary[k_key].update(v_dict)
-
-    with open(results_json_path, "w", encoding="utf-8") as f:
-        json.dump(existing_summary, f, indent=4)
+            print(f"✅ Đã lưu -> Tổng kết {k}-SHOT | {proto['name']}: F1 = {summary_data['macro_f1']}%")
 
 
 if __name__ == "__main__":
-    for src, tgt in SELECTED_PAIRS:
-        run_few_shot_for_pair(src, tgt)
+    for p in args.pairs:
+        src, tgt = p.split(":")
+        run_few_shot(src.strip(), tgt.strip())
