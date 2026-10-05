@@ -30,6 +30,7 @@ from datasets.contrastive_dataset import ContrastiveDatasetWrapper
 from models.encoders.builder import build_encoder
 from models.ssl.prototype.cluster_model import PrototypicalHARModel
 from losses.swav_loss import SwAVPrototypeLoss
+from utils.complexity import measure_model_complexity, print_complexity_report
 
 # Tự động điều hướng lưu Checkpoint về working directory của Kaggle
 IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
@@ -268,6 +269,46 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
     print(f"   📁 Checkpoint : {ckpt_path}")
     print(f"   📉 Best Loss  : {best_loss:.5f}")
     print(f"   📊 Tổng số mẫu: {len(dataset):,}")
+    # 8. Đo độ phức tạp tính toán và lưu Metadata / Complexity ra JSON
+    print(f"⚡ Đang đo lường độ phức tạp tính toán và độ trễ cho {backbone_type.upper()}...")
+    complexity_info = measure_model_complexity(
+        model=backbone,
+        input_size=(1, in_channels, 128),
+        device=DEVICE
+    )
+    print_complexity_report(complexity_info)
+
+    # Lưu kết quả đo độ phức tạp
+    complexity_json_path = save_dir / "complexity.json"
+    with open(complexity_json_path, mode="w", encoding="utf-8") as f:
+        json.dump(complexity_info, f, indent=4)
+    print(f"📄 Đã lưu báo cáo độ phức tạp tại: {complexity_json_path}")
+
+    # Lưu toàn bộ siêu dữ liệu huấn luyện (Training Metadata)
+    metadata_info = {
+        "dataset": domain_name,
+        "data_path": str(data_path),
+        "save_dir": str(save_dir),
+        "checkpoint_name": ckpt_path.name,
+        "backbone_type": backbone_type,
+        "in_channels": in_channels,
+        "feature_dim": FEATURE_DIM,
+        "projection_dim": PROJECTION_DIM,
+        "num_prototypes": args.num_prototypes,
+        "batch_size": args.batch_size,
+        "learning_rate": args.lr,
+        "weight_decay": WEIGHT_DECAY,
+        "epochs": args.epochs,
+        "tau_s": TAU_S,
+        "epsilon": EPSILON,
+        "device": str(DEVICE),
+        "total_samples": len(dataset),
+        "best_loss": round(best_loss, 5)
+    }
+    metadata_json_path = save_dir / "metadata.json"
+    with open(metadata_json_path, mode="w", encoding="utf-8") as f:
+        json.dump(metadata_info, f, indent=4)
+    print(f"📋 Đã lưu siêu dữ liệu huấn luyện tại: {metadata_json_path}")
 
     del model, backbone, criterion, opt_network, opt_proto, loader, dataset
     if torch.cuda.is_available():

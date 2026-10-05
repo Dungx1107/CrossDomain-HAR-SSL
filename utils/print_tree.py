@@ -15,7 +15,16 @@ IGNORE_DIRS = {
     ".mypy_cache",
     "experiments",
     "document",
-    "data",
+    "data/raw",
+    "data/explore_data",
+    "raw",
+    "explore_data",
+    "cross_domain_fraction",
+    "cross_domain_fewshot",
+    "sections",
+    "plots",
+    "crosshar"
+
 }
 
 IGNORE_FILES = {
