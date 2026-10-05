@@ -1,0 +1,58 @@
+\section{Yêu cầu bài toán}
+
+\subsection{Miêu tả chi tiết bài toán}
+Mục tiêu cốt lõi của đề tài là xây dựng hệ thống phân loại 5 hành vi vận động chung (Common Activities) bao gồm: \textit{Walking} (Đi bộ), \textit{Upstairs} (Đi lên cầu thang), \textit{Downstairs} (Đi xuống cầu thang), \textit{Sitting} (Ngồi), và \textit{Standing} (Đứng) trong kịch bản chuyển giao miền thích ứng nhanh.
+
+Bài toán đặt ra yêu cầu mô hình phải giải quyết hai thách thức kỹ thuật lớn:
+\begin{enumerate}
+    \item \textbf{Thiếu hụt nhãn ở miền đích (Few-shot Label Scarcity)}: Ở miền đích, dữ liệu thu thập được hầu như không có nhãn. Mô hình chỉ được cung cấp một tỷ lệ nhãn rất nhỏ $\alpha \in \{0.1\%, 0.5\%, 1.0\%, 5.0\%, 10.0\%\}$ để thực hiện tinh chỉnh (Fine-tuning) hoặc đóng vai trò tập huấn luyện cho bộ phân loại tuyến tính (Linear Probing).
+    \item \textbf{Chuẩn hóa Tensor đầu vào}: Toàn bộ tín hiệu cảm biến thô từ các tập dữ liệu được tiền xử lý và cắt về Tensor chuẩn kích thước:
+    \begin{equation}
+        \mathbf{X} \in \mathbb{R}^{B \times 6 \times 128}
+    \end{equation}
+    Trong đó $B$ là kích thước batch (Batch Size = 64), 6 kênh tín hiệu gồm 3 trục gia tốc người dùng ($a_x, a_y, a_z$) và 3 trục vận tốc góc ($\omega_x, \omega_y, \omega_z$), và 128 là số mẫu thời gian trong một cửa sổ trượt ($2.56$ giây tại tần số $50\text{ Hz}$).
+\end{enumerate}
+
+\subsection{Đặc tả các tập dữ liệu thực nghiệm}
+Hệ thống đánh giá được thực thi trên 3 bộ dữ liệu HAR chuẩn hóa quốc tế với đặc tả được tổng hợp trong Bảng~\ref{tab:dataset_specifications}.
+
+\begin{table}[h!]
+\centering
+\caption{Đặc tả chi tiết 3 bộ dữ liệu thực nghiệm HAR.}
+\label{tab:dataset_specifications}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Tập dữ liệu} & \textbf{Tần số (Hz)} & \textbf{Số kênh} & \textbf{Vị trí đặt thiết bị} & \textbf{Số Subjects (Train/Val/Test)} & \textbf{Số cửa sổ (Train/Val/Test)} \\ \hline
+\textbf{MotionSense} & $50$ & $6$ & Túi quần trước (Smartphone) & $14 / 4 / 6$ (Tổng 24) & $12.375 / 3.711 / 5.453$ \\ \hline
+\textbf{UCI-HAR} & $50$ & $6$ & Thắt lưng (Smartphone) & $21 / 4 / 5$ (Tổng 30) & $5.945 / 1.474 / 2.410$ \\ \hline
+\textbf{HHAR (Phone)} & $50$ (Resampled) & $6$ & Túi quần / Tay (Smartphones) & $5 / 2 / 2$ (Tổng 9) & Phân chia theo Subject \\ \hline
+\textbf{HHAR (Watch)} & $50$ (Resampled) & $6$ & Cổ tay (Smartwatches) & $5 / 2 / 2$ (Tổng 9) & Phân chia theo Subject \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+Chi tiết kỹ thuật của từng tập dữ liệu bao gồm:
+\begin{itemize}
+    \item \textbf{MotionSense}: Dữ liệu thu thập từ 24 người tham gia thực hiện 6 hoạt động với điện thoại iPhone 6s đặt ở túi quần trước. Quá trình phân chia dữ liệu áp dụng chiến lược \textit{3-Way Subject-Independent Split}: Tập Train gồm 14 người dùng (\texttt{sub\_1} đến \texttt{sub\_14}), tập Validation gồm 4 người dùng (\texttt{sub\_15} đến \texttt{sub\_18}), và tập Test độc lập gồm 6 người dùng (\texttt{sub\_19} đến \texttt{sub\_24}). Chiến lược này đảm bảo triệt tiêu rò rỉ dữ liệu giữa các tập.
+    \item \textbf{UCI-HAR}: Dữ liệu thu thập từ 30 người dùng đeo Samsung Galaxy S II ở vị trí thắt lưng. Tương tự, tập dữ liệu được tách thành 21 subjects cho Train, 4 subjects cho Validation (\texttt{VAL\_SUBJECTS} = [27, 28, 29, 30]), và 5 subjects cho Test.
+    \item \textbf{HHAR (Heterogeneous HAR)}: Thu thập từ 9 người dùng với 6 dòng điện thoại thông minh và 2 dòng đồng hồ thông minh khác nhau. Tần số lấy mẫu ban đầu bất đồng bộ được xử lý chuyển đổi tần số (Resampling) về đúng $50\text{ Hz}$ thông qua nội suy tuyến tính, kết hợp bộ lọc thông thấp Butterworth bậc 4 (\texttt{LOWPASS\_CUTOFF} = $10\text{ Hz}$) để loại bỏ nhiễu cao tần. Dữ liệu được đóng gói riêng biệt thành hai biến thể: \texttt{hhar\_phone} và \texttt{hhar\_watch}.
+\end{itemize}
+
+\subsection{Phạm vi và các kịch bản chuyển giao miền}
+Đề tài thiết lập 3 kịch bản chuyển giao miền chính đại diện cho các thách thức thực tế trong ứng dụng HAR:
+\begin{enumerate}
+    \item \textbf{Phone-to-Phone (Chuyển giao giữa các thiết bị điện thoại ở các vị trí khác nhau)}:
+    \begin{itemize}
+        \item $\text{MotionSense} \rightarrow \text{UCI-HAR}$: Chuyển giao từ vị trí túi quần sang vị trí thắt lưng.
+        \item $\text{UCI-HAR} \rightarrow \text{MotionSense}$: Chuyển giao ngược từ vị trí thắt lưng sang túi quần.
+    \end{itemize}
+    \item \textbf{Phone-to-Watch (Chuyển giao từ điện thoại sang đồng hồ đeo tay)}:
+    \begin{itemize}
+        \item $\text{HHAR Phone} \rightarrow \text{HHAR Watch}$: Chuyển giao từ túi quần/thân người lên chuyển động cổ tay. Đây là kịch bản có mức độ Domain Shift cực kỳ lớn do cổ tay tự do chuyển động ngay cả khi cơ thể đứng yên.
+    \end{itemize}
+    \item \textbf{Watch-to-Phone (Chuyển giao từ đồng hồ sang điện thoại)}:
+    \begin{itemize}
+        \item $\text{HHAR Watch} \rightarrow \text{HHAR Phone}$: Đánh giá khả năng suy rộng từ dữ liệu cảm biến thu thập trên thiết bị đeo tay sang thiết bị di động.
+    \end{itemize}
+\end{enumerate}

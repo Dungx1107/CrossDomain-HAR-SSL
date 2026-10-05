@@ -54,7 +54,7 @@ DEFAULT_TRANSFER_PAIRS = [
 # ================== ARGUMENT PARSER ==================
 parser = argparse.ArgumentParser(description="Cross-Domain HAR Benchmark")
 parser.add_argument("--method", type=str, default="tstcc",
-                    choices=["tstcc", "prototype", "masked"],
+                    choices=["tstcc", "prototype", "crosshar"],
                     help="Phương pháp SSL đã dùng để pretrain")
 parser.add_argument("--backbone", type=str, default="standard",
                     choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
@@ -99,7 +99,7 @@ else:
 METHOD_TO_FOLDER = {
     "tstcc": "contrastive",
     "prototype": "prototype",
-    "masked": "masked"
+    "crosshar": "crosshar"
 }
 
 COMMON_CLASS_NAMES = ['Walking', 'Upstairs', 'Downstairs', 'Sitting', 'Standing']

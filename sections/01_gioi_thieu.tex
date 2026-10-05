@@ -1,0 +1,24 @@
+\section{Giới thiệu chung}
+
+\subsection{Giới thiệu công việc}
+Trong đợt thực tập nghiên cứu tại phòng thí nghiệm, công việc tập trung vào nghiên cứu, thiết kế, cài đặt và đánh giá toàn diện các phương pháp Học tự giám sát (Self-Supervised Learning - SSL) áp dụng cho dữ liệu chuỗi thời gian từ cảm biến đo chuyển động quán tính (Inertial Measurement Unit - IMU) trong bài toán Nhận dạng hoạt động con người (Human Activity Recognition - HAR).
+
+Nhiệm vụ cụ thể bao gồm:
+\begin{enumerate}
+    \item \textbf{Nghiên cứu lý thuyết và khảo sát tổng quan}: Đánh giá các hướng tiếp cận SSL tiên tiến bao gồm học tương phản mức mẫu (Instance-level Contrastive Learning với đại diện là TS-TCC), học đại diện cụm trực tuyến (Cluster-level Prototype Learning với đại diện là SwAV), và học khôi phục tín hiệu bị che (Masked Signal Modeling với đại diện là CrossHAR).
+    \item \textbf{Xây dựng đường ống xử lý dữ liệu chuẩn hóa}: Thiết lập khung xử lý tín hiệu số (Digital Signal Processing - DSP), cắt cửa sổ trượt (Sliding Window), chuẩn hóa theo kênh (Channel-wise Instance Normalization) và chia dữ liệu độc lập theo người dùng (Subject-Independent Split) nhằm ngăn chặn hiện tượng rò rỉ dữ liệu (Data Leakage).
+    \item \textbf{Lập trình và tối ưu hóa kiến trúc mạng}: Triển khai hệ thống mã nguồn mô-đun hóa bằng PyTorch với các khối trích xuất đặc trưng (Backbones) đa dạng như Standard 1D-CNN (\texttt{StandardSensorEncoder1D}), TSTCC Encoder (\texttt{TSTCCEncoder}), CNN-Transformer (\texttt{CNNTransformerEncoder}), và Vision Transformer 1D (\texttt{ViT1DEncoder}).
+    \item \textbf{Thực nghiệm và đối sánh liên miền (Cross-Domain HAR)}: Đánh giá khả năng thích ứng của mô hình tiền huấn luyện SSL sang các miền đích bị hạn chế nhãn (Few-shot adaptation ở các tỷ lệ $0.1\%$, $0.5\%$, $1\%$, $5\%$, $10\%$, và $100\%$) trên các bộ dữ liệu tiêu chuẩn UCI-HAR, MotionSense, và HHAR dưới hai giao thức Linear Probing (LP) và Full Fine-Tuning (FT).
+\end{enumerate}
+
+\subsection{Giới thiệu qua bài toán}
+Nhận dạng hoạt động con người (HAR) dựa trên cảm biến IMU (Gia tốc kế - Accelerometer và Con quay hồi chuyển - Gyroscope) giữ vai trò nòng cốt trong các ứng dụng theo dõi sức khỏe, thể thao và tương tác người - máy. Tuy nhiên, việc triển khai các mô hình học máy trong thực tế gặp phải thách thức lớn do sai lệch phân phối dữ liệu giữa các miền (Domain Shift).
+
+Hiện tượng Domain Shift trong Cross-Domain HAR phát sinh từ các nguồn biến thiên vật lý chính sau:
+\begin{itemize}
+    \item \textbf{Thay đổi vị trí đeo thiết bị (Placement Shift)}: Thiết bị cảm biến có thể được đặt tại túi quần trước (MotionSense), thắt lưng (UCI-HAR), hoặc cổ tay (HHAR Watch). Sự thay đổi vị trí làm thay đổi hoàn toàn hệ trục tọa độ tham chiếu và biên độ tín hiệu thu được do động học của các bộ phận cơ thể khác nhau.
+    \item \textbf{Khác biệt phần cứng và tần số lấy mẫu (Hardware \& Sampling Shift)}: Các thiết bị điện thoại (Smartphones) và đồng hồ thông minh (Smartwatches) từ các nhà sản xuất khác nhau sở hữu cảm biến có độ nhạy, dải đo, và tần số lấy mẫu ngầm định khác nhau (ví dụ: HHAR thu thập dữ liệu bất đồng bộ từ 50 Hz đến 200 Hz).
+    \item \textbf{Đa dạng sinh học giữa các cá thể (Subject Diversity)}: Chiều cao, cân nặng, thói quen vận động và tốc độ di chuyển của từng cá nhân tạo ra sự lệch phân phối đáng kể trong không gian đặc trưng.
+\end{itemize}
+
+Phương pháp học có giám sát truyền thống (Supervised Learning) thường suy giảm hiệu năng nghiêm trọng khi đánh giá trực tiếp trên miền đích mới (Zero-shot Transfer) do mô hình bị học thuộc (overfitting) các đặc trưng riêng biệt của miền nguồn. Do đó, việc nghiên cứu các giải pháp Học tự giám sát (SSL) nhằm khai thác nguồn dữ liệu cảm biến chưa gán nhãn dồi dào, thu nhận biểu diễn đặc trưng có tính bất biến miền (Domain-Invariant Representations) và khả năng thích ứng nhanh với ít nhãn (Few-shot Adaptation) là yêu cầu cấp thiết.

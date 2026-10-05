@@ -113,7 +113,7 @@ def main():
 
         X_train = load_all_unlabeled(cfg["train"])
         X_val = load_val_tensor(cfg["val"])
-        print(f"   - Mẫu 90% train gốc: {X_train.shape[0]}")
+        print(f"   - Mẫu train gốc: {X_train.shape[0]}")
 
         if args.expand_6x:
             X_train_pretrain = aug3d.expand_dataset_6x(X_train)

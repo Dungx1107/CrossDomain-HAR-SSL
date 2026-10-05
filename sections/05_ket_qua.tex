@@ -1,0 +1,119 @@
+\section{Kết quả đạt được, hướng phát triển}
+
+\subsection{Đánh giá quá trình hội tụ Pretrain}
+Quá trình tiền huấn luyện SSL được theo dõi thông qua đường cong hội tụ Loss trên 40 Epochs. Hình~\ref{fig:loss_curve} minh họa diễn biến hàm mất mát tổng hợp của các phương pháp SSL.
+
+\begin{figure}[h!]
+\centering
+\begin{verbatim}
+Loss SSL |
+ 4.0 ────┼──* (Epoch 1: Loss ~3.85)
+ 3.0 ────┼───\
+ 2.0 ────┼────\───* (Epoch 15: Loss ~2.12)
+ 1.0 ────┼─────────\──────────* (Epoch 30: Loss ~1.24)
+ 0.5 ────┼─────────────────────\───────────* (Epoch 40: Loss ~0.68)
+ 0.0 ────┴────┼─────────┼─────────┼─────────┼─────────> Epoch
+             0         10        20        30        40
+\end{verbatim}
+\caption{Đường cong hội tụ Loss của quá trình Pretrain TS-TCC SSL trên tập dữ liệu MotionSense.}
+\label{fig:loss_curve}
+\end{figure}
+
+Biểu đồ cho thấy hàm mất mát NT-Xent Loss giảm đều đặn từ giá trị ban đầu $3.85$ xuống còn $0.68$ tại Epoch 40. Việc không xuất hiện hiện tượng dao động mạnh chứng tỏ các kỹ thuật tăng cường dữ liệu (\texttt{TS\_TCC\_Augmentation}) được thiết kế phù hợp, giúp mô hình học được các đại diện đặc trưng ổn định mà không bị suy giáp (Representation Collapse).
+
+\subsection{Kết quả thực nghiệm thích ứng liên miền}
+\subsubsection{Đánh giá Linear Probing và Full Fine-Tuning trên miền nguồn}
+Bảng~\ref{tab:in_domain_eval} trình bày kết quả đối sánh giữa hai giao thức Linear Probing (LP - đóng băng Encoder) và Full Fine-Tuning (FT - mở khóa toàn mạng) trên tập dữ liệu MotionSense qua 5 giá trị Seed ngẫu nhiên (Mean $\pm$ Std).
+
+\begin{table}[h!]
+\centering
+\caption{Kết quả đánh giá hiệu năng phân loại trên MotionSense theo các tỷ lệ nhãn (Mean $\pm$ Std qua 5 Seeds).}
+\label{tab:in_domain_eval}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Tỷ lệ nhãn (\%)} & \textbf{Số mẫu Train} & \textbf{LP Macro F1 (\%)} & \textbf{LP Accuracy (\%)} & \textbf{FT Macro F1 (\%)} & \textbf{FT Accuracy (\%)} \\ \hline
+$0.1\%$ & $12$ & $50.01 \pm 8.75$ & $56.28 \pm 7.15$ & $52.91 \pm 8.81$ & $59.60 \pm 8.17$ \\ \hline
+$0.5\%$ & $61$ & $67.31 \pm 1.29$ & $69.00 \pm 1.31$ & $71.07 \pm 2.97$ & $72.45 \pm 2.81$ \\ \hline
+$1.0\%$ & $123$ & $71.65 \pm 1.47$ & $72.86 \pm 1.03$ & $74.89 \pm 1.52$ & $75.53 \pm 1.11$ \\ \hline
+$5.0\%$ & $618$ & $79.66 \pm 0.60$ & $79.91 \pm 0.84$ & $83.23 \pm 1.72$ & $83.18 \pm 1.81$ \\ \hline
+$10.0\%$ & $1237$ & $81.35 \pm 0.67$ & $81.60 \pm 0.65$ & $\mathbf{84.70} \pm 0.80$ & $\mathbf{84.71} \pm 0.82$ \\ \hline
+$100.0\%$ & $12375$ & $82.36 \pm 0.22$ & $82.77 \pm 0.27$ & $84.48 \pm 0.59$ & $85.53 \pm 0.59$ \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+\textbf{Phân tích}: Ngay cả khi chỉ sử dụng $1.0\%$ dữ liệu có nhãn ($123$ mẫu), giao thức Linear Probing đạt Macro F1 $71.65\%$, và Full Fine-Tuning đạt $74.89\%$. Điều này khẳng định Encoder tiền huấn luyện SSL đã giải nén thành công các thông tin ngữ cảnh hữu ích mà không cần nhiều nhãn giám sát. Khi tăng tỷ lệ nhãn lên $10\%$, Full Fine-Tuning đạt Macro F1 $84.70\%$, tương đương (thậm chí vượt nhẹ) so với khi huấn luyện trên $100\%$ nhãn thô ($84.48\%$).
+
+\subsubsection{Kết quả chuyển giao miền Few-Shot Cross-Domain}
+Bảng~\ref{tab:cross_domain_eval} so sánh hiệu năng thích ứng Few-shot giữa hai chiều chuyển giao miền: $\text{MotionSense} \rightarrow \text{UCI-HAR}$ và $\text{UCI-HAR} \rightarrow \text{MotionSense}$.
+
+\begin{table}[h!]
+\centering
+\caption{Kết quả chuyển giao Few-Shot SSL TS-TCC giữa MotionSense và UCI-HAR (Macro F1 \%).}
+\label{tab:cross_domain_eval}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Tỷ lệ nhãn miền đích (\%)} & \textbf{MotionSense $\rightarrow$ UCI-HAR (Macro F1 \%)} & \textbf{UCI-HAR $\rightarrow$ MotionSense (Macro F1 \%)} \\ \hline
+Zero-shot ($0\%$) & $3.97 \pm 0.00$ (Thất bại do Domain Shift) & $17.56 \pm 0.00$ (Linear Probed Direct) \\ \hline
+$0.1\%$ & $45.83 \pm 6.23$ & $54.31 \pm 6.92$ \\ \hline
+$0.5\%$ & $67.97 \pm 6.32$ & $67.11 \pm 2.78$ \\ \hline
+$1.0\%$ & $74.49 \pm 2.18$ & $74.01 \pm 1.65$ \\ \hline
+$5.0\%$ & $85.72 \pm 1.26$ & $79.29 \pm 0.99$ \\ \hline
+$10.0\%$ & $88.19 \pm 1.52$ & $79.85 \pm 1.90$ \\ \hline
+$100.0\%$ & $\mathbf{95.02} \pm 0.64$ & $79.91 \pm 1.80$ \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Phân tích Ma trận nhầm lẫn \& Điểm nghẽn vật lý}
+\subsubsection{Phân tích Ma trận nhầm lẫn và Cặp lớp tĩnh}
+Bảng~\ref{tab:confusion_matrix} trình bày ma trận nhầm lẫn chi tiết trên tập Test MotionSense của mô hình 1D-CNN Baseline.
+
+\begin{table}[h!]
+\centering
+\caption{Ma trận nhầm lẫn của mô hình Baseline trên tập Test MotionSense (5.453 mẫu).}
+\label{tab:confusion_matrix}
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{Thực tế / Dự đoán} & \textbf{Downstairs} & \textbf{Upstairs} & \textbf{Walking} & \textbf{Jogging} & \textbf{Sitting} & \textbf{Standing} \\ \hline
+\textbf{Downstairs (486)} & \mathbf{397} & 74 & 7 & 7 & 0 & 1 \\ \hline
+\textbf{Upstairs (626)} & 68 & \mathbf{542} & 9 & 1 & 6 & 0 \\ \hline
+\textbf{Walking (1335)} & 353 & 42 & \mathbf{934} & 5 & 0 & 1 \\ \hline
+\textbf{Jogging (528)} & 5 & 5 & 1 & \mathbf{517} & 0 & 0 \\ \hline
+\textbf{Sitting (1183)} & 0 & 0 & 0 & 0 & \mathbf{1163} & 20 \\ \hline
+\textbf{Standing (1295)} & 1 & 1 & 0 & 0 & 392 & \mathbf{901} \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Điểm nghẽn vật lý chính}:
+\begin{enumerate}
+    \item \textbf{Nhầm lẫn giữa Sitting và Standing}: Có tới $392$ mẫu thực tế là \textit{Standing} bị dự đoán nhầm thành \textit{Sitting}. Nguyên nhân vật lý do cả hai trạng thái đều là hoạt động tĩnh (Static Activities). Khi thiết bị điện thoại đặt ở túi quần hoặc thắt lưng, vector gia tốc trọng trường g ($\approx 9.8\text{ m/s}^2$) duy trì phương thẳng đứng gần như tương đồng nếu người dùng ngồi thẳng lưng, khiến cảm biến không ghi nhận được biến thiên động năng lớn.
+    \item \textbf{Nhầm lẫn giữa Walking và Downstairs}: Có $353$ mẫu \textit{Walking} bị đoán nhầm thành \textit{Downstairs}. Điều này do mẫu hình bước chân khi đi xuống cầu thang có tần số tương tự đi bộ, chỉ khác biệt nhỏ ở biên độ va chạm theo trục tung.
+\end{enumerate}
+
+\subsubsection{Hiện tượng bất đối xứng chuyển giao tín hiệu (Asymmetric Signal Transfer)}
+Thực nghiệm ghi nhận một hiện tượng vật lý thú vị: Chiều chuyển giao $\text{MotionSense} \rightarrow \text{UCI-HAR}$ đạt hiệu năng vượt trội ($95.02\%$ F1 ở $100\%$ nhãn) so với chiều ngược lại $\text{UCI-HAR} \rightarrow \text{MotionSense}$ (chỉ đạt $79.91\%$).
+
+\textbf{Giải thích bản chất vật lý}:
+\begin{itemize}
+    \item Điện thoại đặt tại túi quần trước (MotionSense) chịu tác động trực tiếp từ góc quay của đùi và chuyển động co gấp chân. Do đó, tín hiệu vận tốc góc ($\omega$) và gia tốc co đùi có biên độ dao động lớn và giàu thông tin ngữ cảnh hơn. Khi pretrain trên dữ liệu giàu thông tin này, Encoder học được các đặc trưng tổng quát hóa cao.
+    \item Ngược lại, thiết bị đặt tại thắt lưng (UCI-HAR) nằm ở trọng tâm cơ thể (Center of Mass), tín hiệu thu được bị triệt tiêu bớt các biến thiên động học cục bộ. Do đó, Encoder pretrain từ UCI-HAR thiếu các biểu diễn chi tiết để phân biệt dữ liệu túi quần phức tạp của MotionSense.
+\end{itemize}
+
+\subsection{Kỹ năng thu thập được}
+Qua quá trình thực hiện đợt thực tập nghiên cứu, các kỹ năng kỹ thuật và tư duy nghiên cứu đã thu nhận được bao gồm:
+\begin{itemize}
+    \item \textbf{Kỹ năng lập trình hệ thống \& PyTorch}: Thành thạo việc tổ chức cấu trúc mã nguồn mô-đun hóa, xây dựng các lớp \texttt{Dataset}, \texttt{DataLoader}, tự viết các hàm mất mát tùy biến (\texttt{NTXentLoss}, \texttt{SwAVPrototypeLoss}), và tối ưu hóa luồng huấn luyện trên GPU.
+    \item \textbf{Xử lý tín hiệu cảm biến (DSP)}: Hiểu sâu về tần số lấy mẫu, phân đoạn cửa sổ trượt, kỹ thuật lọc nhiễu thông thấp Butterworth và chuẩn hóa Instance Normalization cho dữ liệu 6 trục.
+    \item \textbf{Tư duy nghiên cứu bài bản}: Nắm vững quy trình đánh giá chuẩn chống rò rỉ dữ liệu (Subject-Independent Split), thiết lập Baseline làm mốc đối sánh, và phân tích hiện tượng Domain Shift dưới góc độ lý thuyết vật lý.
+\end{itemize}
+
+\subsection{Hướng phát triển tiếp theo}
+Để tiếp tục nâng cao hiệu năng và mở rộng tính ứng dụng của hệ thống, các hướng phát triển tương lai bao gồm:
+\begin{enumerate}
+    \item \textbf{Cơ chế Tương tác liên cảm biến (Cross-Sensor Attention)}: Nghiên cứu các mô-đun Attention cho phép mô hình tự động điều chỉnh trọng số giữa cụm Gia tốc kế và Con quay hồi chuyển tùy thuộc vào vị trí đeo thiết bị.
+    \item \textbf{Tự gán nhãn giả kết hợp Thích ứng miền (Pseudo-Labeling \& Self-Training)}: Sử dụng mô hình SSL pretrain để gán nhãn giả có độ tin cậy cao cho dữ liệu miền đích chưa có nhãn, kết hợp học phân biệt miền (Domain Discriminator) để thu hẹp khoảng cách phân phối.
+    \item \textbf{Tối ưu hóa và Đóng gói mô hình nhúng}: Nén mô hình (Quantization / Knowledge Distillation) để triển khai trực tiếp trên các thiết bị di động và đồng hồ thông minh với mức tiêu thụ năng lượng thấp.
+\end{enumerate}

@@ -1,0 +1,85 @@
+\section{Tóm tắt lý thuyết, giải pháp, thuật toán}
+
+\subsection{Tiền xử lý và Tăng cường dữ liệu (Data Augmentation)}
+\subsubsection{Chuẩn hóa tín hiệu và Cửa sổ trượt}
+Chuỗi thời gian cảm biến IMU liên tục được đưa qua phương pháp phân đoạn cửa sổ trượt (Sliding Window) với độ dài $L = 128$ mẫu (tương đương $2.56$ giây tại $50\text{ Hz}$) và bước trượt $\text{Stride} = 64$ mẫu (độ chồng lấp Overlap $50\%$). 
+
+Để loại bỏ sự khác biệt về biên độ tuyệt đối giữa các thiết bị và loại bỏ thành phần gia tốc trọng trường tĩnh, kỹ thuật chuẩn hóa từng kênh theo mẫu (Channel-wise Instance Normalization) được áp dụng:
+\begin{equation}
+    \hat{\mathbf{x}}_{c} = \frac{\mathbf{x}_{c} - \mu_{c}}{\sigma_{c} + \epsilon}, \quad \forall c \in \{1, 2, \dots, 6\}
+\end{equation}
+trong đó $\mu_{c}$ và $\sigma_{c}$ là trung bình và độ lệch chuẩn được tính riêng cho kênh $c$ trên từng cửa sổ $128$ mẫu, và $\epsilon = 10^{-6}$ nhằm bảo đảm ổn định số học.
+
+\subsubsection{Kỹ thuật Tăng cường cho TS-TCC và CrossHAR}
+Học tự giám sát phụ thuộc lớn vào việc sinh các góc nhìn (Views) đa dạng từ dữ liệu thô:
+\begin{itemize}
+    \item \textbf{Tăng cường TS-TCC (\texttt{TS\_TCC\_Augmentation})}: Sinh cặp góc nhìn $(x_{\text{weak}}, x_{\text{strong}})$. Góc nhìn yếu ($x_{\text{weak}}$) bổ sung nhiễu Jittering nhẹ $\mathcal{N}(0, 0.05)$. Góc nhìn mạnh ($x_{\text{strong}}$) kết hợp cả 3 biến đổi: Jittering, Scaling biên độ với hệ số ngẫu nhiên $\gamma \sim \mathcal{U}(0.8, 1.2)$, và Permutation (chia đoạn tín hiệu thành $M=4$ phần và xáo trộn vị trí).
+    \item \textbf{Tăng cường vật lý 3D trong CrossHAR (\texttt{Physical3DAugmentation})}: Dựa trên bản chất hình học của cảm biến 3D, 6 ma trận hoán vị trực giao được áp dụng đồng bộ cho cả cụm Gia tốc ($c \in \{0, 1, 2\}$) và Con quay hồi chuyển ($c \in \{3, 4, 5\}$):
+    \begin{equation}
+        P \in \{ (x,y,z), (x,z,y), (y,x,z), (y,z,x), (z,x,y), (z,y,x) \}
+    \end{equation}
+    Biến đổi này mở rộng dung lượng tập dữ liệu pretrain lên gấp 6 lần ($6 \times N$) mà vẫn giữ nguyên đặc tính vật lý của chuyển động.
+\end{itemize}
+
+\subsection{Các phương pháp Học tự giám sát (SSL)}
+
+\subsubsection{TS-TCC: Temporal \& Contextual Contrasting}
+Mô hình TS-TCC (\texttt{TS\_TCC\_Model}) áp dụng cơ chế học tương phản hai mức:
+\begin{enumerate}
+    \item \textbf{Temporal Contrasting (TC)}: Sử dụng một khối Transformer autoregressive để dự đoán tương lai $k$ bước từ không gian đặc trưng. Cặp dương tính được xác định giữa ngữ cảnh dự đoán của góc nhìn yếu tại thời điểm $t$ và đặc trưng tương lai của góc nhìn mạnh tại thời điểm $t+k$.
+    \item \textbf{Contextual Contrasting (CC)}: Áp dụng hàm mất mát NT-Xent (\texttt{NTXentLoss}) trên vector đại diện toàn cục $h_{\text{weak}}$ và $h_{\text{strong}}$ sau lớp Projection Head. Hàm mất mát NT-Xent giữa cặp mẫu thứ $i$ được định nghĩa:
+    \begin{equation}
+        \mathcal{L}_{\text{NT-Xent}}^{(i, j)} = -\log \frac{\exp(\text{sim}(z_i, z_j) / \tau)}{\sum_{k=1}^{2B} \mathbb{I}_{[k \neq i]} \exp(\text{sim}(z_i, z_k) / \tau)}
+    \end{equation}
+    với $\text{sim}(u, v) = \frac{u^T v}{\|u\|_2 \|v\|_2}$ là độ tương đồng Cosine và nhiệt độ $\tau = 0.2$.
+\end{enumerate}
+
+\subsubsection{SwAV Prototype Learning (Học cụm nguyên mẫu)}
+Thay vì so sánh trực tiếp từng cặp mẫu (Instance-level), phương pháp SwAV trong \texttt{PrototypicalHARModel} biểu diễn không gian đặc trưng thông qua $K=45$ nguyên mẫu có thể học $\mathbf{C} \in \mathbb{R}^{K \times D_p}$ (với $D_p = 64$).
+
+Quy trình gán cụm mềm trực tuyến sử dụng thuật toán Sinkhorn-Knopp (\texttt{sinkhorn\_knopp}):
+\begin{equation}
+    \max_{\mathbf{Q} \in \mathcal{Q}} \text{Tr}(\mathbf{Q}^T \mathbf{C}^T \mathbf{Z}) + \epsilon H(\mathbf{Q})
+\end{equation}
+trong đó $\mathbf{Q} \in \mathbb{R}^{K \times B}$ là ma trận gán cụm mềm, $H(\mathbf{Q}) = -\sum_{ik} Q_{ik} \log Q_{ik}$ là độ hỗn loạn Entropy, và $\epsilon = 0.05$. Ma trận $\mathbf{Q}$ được tối ưu lặp $3$ vòng để thỏa mãn điều kiện ràng buộc phân bổ đều (Equipartition Constraint).
+
+Hàm mất mát Swapped Prediction (\texttt{SwAVPrototypeLoss}) dự đoán mã cụm của góc nhìn này từ góc nhìn kia:
+\begin{equation}
+    \mathcal{L}_{\text{SwAV}} = \frac{1}{2} \left[ \ell(\mathbf{q}^{(w)}, \mathbf{p}^{(s)}) + \ell(\mathbf{q}^{(s)}, \mathbf{p}^{(w)}) \right]
+\end{equation}
+với $\ell(\mathbf{q}, \mathbf{p}) = -\sum_{k} q_k \log p_k$ là hàm Cross-Entropy giữa phân phối gán cụm Sinkhorn $\mathbf{q}$ và phân phối Softmax $\mathbf{p} = \text{Softmax}(\mathbf{C} z / \tau)$.
+
+\subsubsection{CrossHAR: Masked Signal Modeling \& Contrastive Regularization}
+CrossHAR kết hợp hai tác vụ phụ (Pretext Tasks):
+\begin{itemize}
+    \item \textbf{Masked Signal Modeling (MSM)}: Che một tỷ lệ các phân đoạn thời gian trên từng kênh cảm biến bằng \texttt{MaskGenerator}, sau đó sử dụng Encoder-Decoder để tái tạo lại tín hiệu thô ban đầu thông qua hàm mất mát MSE Loss.
+    \item \textbf{Contrastive Regularization}: Tạo lực ép điều hòa không gian đặc trưng giữa các biến thể nhiễu biên độ $x^{-}$ và biến thể hoán vị phân đoạn $x^{+}$ nhằm duy trì tính vững chắc của Encoder trước các biến đổi tín hiệu vật lý.
+\end{itemize}
+
+\subsection{Kiến trúc các mạng trích xuất đặc trưng (Backbones)}
+Nghiên cứu cài đặt và phân tích 4 kiến trúc Backbone trích xuất đặc trưng chính (\texttt{models/encoders/builder.py}):
+\begin{enumerate}
+    \item \textbf{Standard 1D-CNN (\texttt{StandardSensorEncoder1D})}: Bao gồm 4 khối tích chập 1D liên tiếp với số kênh tăng dần $6 \rightarrow 32 \rightarrow 64 \rightarrow 96 \rightarrow 128$. Sử dụng Kernel kích thước $7, 5, 5, 3$ kết hợp BatchNorm1d, ReLU và MaxPool1d(2). Số lượng tham số toàn mạng xấp xỉ $\sim 178.694$ tham số ($\sim 0.68\text{ MB}$). Kiến trúc sở hữu quán tính quy nạp (Inductive Bias) mạnh đối với dữ liệu cảm biến chuỗi thời gian cục bộ.
+    \item \textbf{TSTCC Encoder (\texttt{TSTCCEncoder})}: Tái hiện chính xác $100\%$ kiến trúc \texttt{base\_Model} từ bài báo gốc TS-TCC (IJCAI 2021). Gồm 3 khối Conv1D với Kernel cố định bằng $8$, Stride $1$, Padding $4$, kết hợp Dropout $0.35$ tại Block 1. Đầu ra của Encoder có dạng Feature Map 3D: $(B, 128, 18)$.
+    \item \textbf{CNN-Transformer (\texttt{CNNTransformerEncoder})}: Kết hợp các lớp tích chập 1D đầu để trích xuất đặc trưng tần số cao cục bộ, sau đó đưa qua $2$ lớp Transformer Encoder (\texttt{d\_model}=128, \texttt{nhead}=4, \texttt{dim\_feedforward}=256) để học phụ thuộc chuỗi thời gian khoảng cách xa.
+    \item \textbf{ViT-1D (\texttt{ViT1DEncoder})}: Biến thể Vision Transformer 1D chia chuỗi thời gian $128$ mẫu thành các mảng Patch độ dài $16$, nhúng Linear Projection và Positional Encoding trước khi đưa qua các lớp Self-Attention.
+\end{enumerate}
+
+\subsection{So sánh và đối chiếu lý thuyết}
+Bảng~\ref{tab:ssl_comparison} tóm tắt ưu nhược điểm lý thuyết của 3 trường phái SSL được triển khai trong dự án.
+
+\begin{table}[h!]
+\centering
+\caption{So sánh lý thuyết giữa các hướng tiếp cận SSL cho cảm biến IMU.}
+\label{tab:ssl_comparison}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Tiêu chí} & \textbf{Instance-level (TS-TCC)} & \textbf{Cluster-level (SwAV Prototype)} & \textbf{Masked Modeling (CrossHAR)} \\ \hline
+\textbf{Cơ chế cốt lõi} & So sánh từng cặp mẫu $z_i, z_j$ qua NT-Xent & Gán cụm mềm vào $K=45$ Prototypes & Tái tạo đoạn tín hiệu bị che (MSE) \\ \hline
+\textbf{Độ phức tạp tính toán} & $\mathcal{O}(B^2)$ theo kích thước Batch & $\mathcal{O}(B \cdot K)$ với Sinkhorn-Knopp & $\mathcal{O}(B \cdot L)$ tuyến tính theo độ dài chuỗi \\ \hline
+\textbf{Hiện tượng rủi ro} & Phụ thuộc lớn vào Kích thước Batch $B$ & Nhạy cảm với số cụm chọn trước $K$ & Có thể học chi tiết nhiễu tần số cao \\ \hline
+\textbf{Khả năng đóng góp} & Học đặc trưng toàn cục vĩ mô xuất sắc & Gom nhóm ngữ cảnh tĩnh (Sitting/Standing) & Bảo toàn cấu trúc sóng và nhịp sinh học \\ \hline
+\end{tabular}%
+}
+\end{table}
