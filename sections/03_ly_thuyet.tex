@@ -1,25 +1,75 @@
 \section{Tóm tắt lý thuyết, giải pháp, thuật toán}
 
-\subsection{Tiền xử lý và Tăng cường dữ liệu (Data Augmentation)}
-\subsubsection{Chuẩn hóa tín hiệu và Cửa sổ trượt}
-Chuỗi thời gian cảm biến IMU liên tục được đưa qua phương pháp phân đoạn cửa sổ trượt (Sliding Window) với độ dài $L = 128$ mẫu (tương đương $2.56$ giây tại $50\text{ Hz}$) và bước trượt $\text{Stride} = 64$ mẫu (độ chồng lấp Overlap $50\%$). 
+\subsection{Tiền xử lý dữ liệu và Phân chia thử nghiệm}
 
-Để loại bỏ sự khác biệt về biên độ tuyệt đối giữa các thiết bị và loại bỏ thành phần gia tốc trọng trường tĩnh, kỹ thuật chuẩn hóa từng kênh theo mẫu (Channel-wise Instance Normalization) được áp dụng:
-\begin{equation}
-    \hat{\mathbf{x}}_{c} = \frac{\mathbf{x}_{c} - \mu_{c}}{\sigma_{c} + \epsilon}, \quad \forall c \in \{1, 2, \dots, 6\}
-\end{equation}
-trong đó $\mu_{c}$ và $\sigma_{c}$ là trung bình và độ lệch chuẩn được tính riêng cho kênh $c$ trên từng cửa sổ $128$ mẫu, và $\epsilon = 10^{-6}$ nhằm bảo đảm ổn định số học.
+Quá trình tiền xử lý dữ liệu cảm biến được thực hiện chi tiết và riêng biệt cho từng tập dữ liệu, tuân thủ nghiêm ngặt nguyên tắc xử lý tín hiệu số (DSP), chuẩn hóa kích thước cửa sổ và phân chia dữ liệu độc lập theo người dùng (Subject-Independent Split) nhằm loại bỏ rò rỉ dữ liệu.
 
-\subsubsection{Kỹ thuật Tăng cường cho TS-TCC và CrossHAR}
-Học tự giám sát phụ thuộc lớn vào việc sinh các góc nhìn (Views) đa dạng từ dữ liệu thô:
+\subsubsection{Tiền xử lý trên tập dữ liệu MotionSense}
 \begin{itemize}
-    \item \textbf{Tăng cường TS-TCC (\texttt{TS\_TCC\_Augmentation})}: Sinh cặp góc nhìn $(x_{\text{weak}}, x_{\text{strong}})$. Góc nhìn yếu ($x_{\text{weak}}$) bổ sung nhiễu Jittering nhẹ $\mathcal{N}(0, 0.05)$. Góc nhìn mạnh ($x_{\text{strong}}$) kết hợp cả 3 biến đổi: Jittering, Scaling biên độ với hệ số ngẫu nhiên $\gamma \sim \mathcal{U}(0.8, 1.2)$, và Permutation (chia đoạn tín hiệu thành $M=4$ phần và xáo trộn vị trí).
-    \item \textbf{Tăng cường vật lý 3D trong CrossHAR (\texttt{Physical3DAugmentation})}: Dựa trên bản chất hình học của cảm biến 3D, 6 ma trận hoán vị trực giao được áp dụng đồng bộ cho cả cụm Gia tốc ($c \in \{0, 1, 2\}$) và Con quay hồi chuyển ($c \in \{3, 4, 5\}$):
-    \begin{equation}
-        P \in \{ (x,y,z), (x,z,y), (y,x,z), (y,z,x), (z,x,y), (z,y,x) \}
-    \end{equation}
-    Biến đổi này mở rộng dung lượng tập dữ liệu pretrain lên gấp 6 lần ($6 \times N$) mà vẫn giữ nguyên đặc tính vật lý của chuyển động.
+    \item \textbf{Đặc trưng cảm biến trích xuất ($6$ kênh)}: 
+    Tín hiệu được thu thập từ điện thoại iPhone 6s đặt tại túi quần trước. $6$ kênh cảm biến bao gồm:
+    \begin{enumerate}
+        \item $3$ kênh gia tốc tổng ($a_x, a_y, a_z$): Được tính toán bằng cách cộng gia tốc người dùng (\texttt{userAcceleration}) với thành phần trọng lực tĩnh (\texttt{gravity}): 
+        $\text{total\_acc} = \text{userAcceleration} + \text{gravity}$ (đơn vị $g \approx 9.8\text{ m/s}^2$).
+        \item $3$ kênh vận tốc góc ($\omega_x, \omega_y, \omega_z$): Trích xuất từ cảm biến con quay hồi chuyển (\texttt{rotationRate.x}, \texttt{rotationRate.y}, \texttt{rotationRate.z}, đơn vị rad/s).
+    \end{enumerate}
+    \item \textbf{Phân đoạn cửa sổ trượt (Sliding Window)}: Tần số lấy mẫu thô của thiết bị là $50\text{ Hz}$. Chuỗi thời gian liên tục được cắt thành các cửa sổ độ dài $L = 128$ mẫu (tương đương $2.56$ giây) với bước trượt $\text{Stride} = 64$ mẫu (độ chồng lấp Overlap $50\%$). Mỗi mẫu dữ liệu sau cắt có dạng Tensor 2D kích thước $(6, 128)$.
+    \item \textbf{Phân chia dữ liệu (3-Way Subject-Independent Split)}: Toàn bộ $24$ người tham gia thực nghiệm được chia thành 3 tập hoàn toàn không chồng lấp về đối tượng:
+    \begin{itemize}
+        \item Tập Train ($14$ subjects: \texttt{sub\_1} đến \texttt{sub\_14}): Thu được $12.375$ cửa sổ.
+        \item Tập Validation ($4$ subjects: \texttt{sub\_15} đến \texttt{sub\_18}): Thu được $3.711$ cửa sổ.
+        \item Tập Test ($6$ subjects: \texttt{sub\_19} đến \texttt{sub\_24}): Thu được $5.453$ cửa sổ.
+    \end{itemize}
+    \item \textbf{Ánh xạ nhãn ($6$ lớp)}: Walking ($0$), Upstairs ($1$), Downstairs ($2$), Sitting ($3$), Standing ($4$), Jogging ($5$).
 \end{itemize}
+
+\subsubsection{Tiền xử lý trên tập dữ liệu UCI-HAR}
+\begin{itemize}
+    \item \textbf{Đặc trưng cảm biến trích xuất ($6$ kênh)}: 
+    Dữ liệu thu từ thiết bị Samsung Galaxy S II đeo tại vị trí thắt lưng. Trích xuất trực tiếp từ 6 file văn bản thô trong thư mục \texttt{Inertial Signals/}:
+    \begin{enumerate}
+        \item $3$ kênh gia tốc cơ thể tổng (\texttt{total\_acc\_x}, \texttt{total\_acc\_y}, \texttt{total\_acc\_z}, đơn vị $g$).
+        \item $3$ kênh con quay hồi chuyển cơ thể (\texttt{body\_gyro\_x}, \texttt{body\_gyro\_y}, \texttt{body\_gyro\_z}, đơn vị rad/s).
+    \end{enumerate}
+    \item \textbf{Đóng gói cửa sổ}: Tần số lấy mẫu $50\text{ Hz}$. Dữ liệu thô đã được cắt sẵn ở độ dài $128$ mẫu ($\text{Stride} = 64$). Hệ thống thực hiện ghép (stacking) $6$ chuỗi kênh thành Tensor có kích thước chuẩn $(6, 128)$.
+    \item \textbf{Phân chia dữ liệu (Subject-Independent Split)}: Phân chia $30$ người dùng thành các tập độc lập:
+    \begin{itemize}
+        \item Tập Train ($17$ subjects): Thu được $5.945$ cửa sổ.
+        \item Tập Validation ($4$ subjects tách từ tập Train gốc: \texttt{VAL\_SUBJECTS} = $[27, 28, 29, 30]$): Thu được $1.474$ cửa sổ.
+        \item Tập Test ($9$ subjects độc lập gốc): Thu được $2.410$ cửa sổ.
+    \end{itemize}
+    \item \textbf{Ánh xạ nhãn ($6$ lớp)}: Walking ($0$), Upstairs ($1$), Downstairs ($2$), Sitting ($3$), Standing ($4$), Laying ($5$).
+\end{itemize}
+
+\subsubsection{Tiền xử lý trên tập dữ liệu HHAR (Heterogeneous HAR)}
+\begin{itemize}
+    \item \textbf{Đặc trưng cảm biến trích xuất ($6$ kênh)}: 
+    Trích xuất đồng bộ từ cụm Gia tốc kế ($x, y, z$) và Con quay hồi chuyển ($x, y, z$) trên các thiết bị điện thoại (\texttt{Phones\_accelerometer.csv}, \texttt{Phones\_gyroscope.csv}) và đồng hồ đeo tay (\texttt{Watch\_accelerometer.csv}, \texttt{Watch\_gyroscope.csv}).
+    \item \textbf{Quy trình xử lý tín hiệu số (DSP Pipeline)}:
+    \begin{enumerate}
+        \item Lọc loại bỏ các nhãn không thuộc $5$ hoạt động chung (bỏ \texttt{bike} và \texttt{null}).
+        \item Gom nhóm dữ liệu theo từng phiên ghi thuần nhất \texttt{(User, Device, gt)} và chỉ cắt lấy khoảng thời gian giao nhau (Overlap time) giữa cảm biến gia tốc và con quay.
+        \item Xử lý ngắt khoảng thời gian: Cắt đoạn tín hiệu nếu khoảng cách giữa hai mẫu liên tiếp lớn hơn $\Delta t > 1.0$ giây (\texttt{GAP\_THRESHOLD\_S} = $1.0\text{s}$).
+        \item Lọc thông thấp (Low-pass Filter): Áp dụng bộ lọc Butterworth bậc $4$ (\texttt{FILTER\_ORDER} = $4$) với tần số cắt $10\text{ Hz}$ (\texttt{LOWPASS\_CUTOFF} = $10.0\text{ Hz}$) nhằm triệt tiêu nhiễu cao tần do rung động thiết bị.
+        \item Nội suy tái lấy mẫu (Resampling): Sử dụng nội suy tuyến tính chuyển đổi toàn bộ chuỗi tín hiệu bất đồng bộ về tần số chuẩn $50\text{ Hz}$ (\texttt{TARGET\_FS} = $50.0\text{ Hz}$).
+        \item Loại bỏ các phân đoạn thời gian quá ngắn (số mẫu $< 256$).
+        \item Cắt cửa sổ trượt $L = 128$ mẫu, $\text{Stride} = 64$ mẫu (Overlap $50\%$) tạo Tensor $(6, 128)$.
+    \end{enumerate}
+    \item \textbf{Phân chia dữ liệu (Subject-Independent Split)}: Phân chia $9$ người dùng (mã hóa 'a' đến 'i' tương ứng $0 \dots 8$):
+    \begin{itemize}
+        \item Tập Train ($5$ subjects: $[0, 1, 3, 4, 7]$ tương ứng người dùng 'a', 'b', 'd', 'e', 'h').
+        \item Tập Validation ($2$ subjects: $[5, 6]$ tương ứng người dùng 'f', 'g').
+        \item Tập Test ($2$ subjects: $[2, 8]$ tương ứng người dùng 'c', 'i').
+    \end{itemize}
+    \item Đóng gói riêng biệt thành hai tập miền: \texttt{hhar\_phone} (điện thoại) và \texttt{hhar\_watch} (đồng hồ), đồng thời gộp toàn bộ thành tập \texttt{hhar\_combined} phục vụ pretrain SSL.
+\end{itemize}
+
+\subsubsection{Chuẩn hóa từng kênh theo mẫu (Channel-wise Instance Normalization)}
+Sau khi đóng gói cửa sổ $(6, 128)$, kỹ thuật chuẩn hóa Instance Normalization được áp dụng đồng nhất trên từng kênh cho cả 3 tập dữ liệu:
+\begin{equation}
+    \hat{\mathbf{x}}_{c, t} = \frac{\mathbf{x}_{c, t} - \mu_{c}}{\sigma_{c} + \epsilon}, \quad \forall c \in \{1, 2, \dots, 6\}, \; t \in \{1, 2, \dots, 128\}
+\end{equation}
+trong đó $\mu_{c} = \frac{1}{128} \sum_{t=1}^{128} \mathbf{x}_{c, t}$ và $\sigma_{c} = \sqrt{\frac{1}{128} \sum_{t=1}^{128} (\mathbf{x}_{c, t} - \mu_{c})^2}$ là giá trị trung bình và độ lệch chuẩn được tính riêng cho kênh $c$ trên từng cửa sổ $128$ mẫu, và $\epsilon = 10^{-6}$ bảo đảm ổn định số học. Quá trình này giúp triệt tiêu sự chênh lệch về biên độ tuyệt đối giữa các loại cảm biến và các vị trí đeo khác nhau.
 
 \subsection{Các phương pháp Học tự giám sát (SSL)}
 

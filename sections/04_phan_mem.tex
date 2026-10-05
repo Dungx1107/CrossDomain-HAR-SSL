@@ -1,49 +1,18 @@
 \section{Mô tả phần mềm cài đặt}
 
 \subsection{Cấu trúc mã nguồn hệ thống}
-Mã nguồn dự án được thiết kế theo kiến trúc hướng mô-đun (Modular Architecture), tuân thủ nghiêm ngặt nguyên tắc tách biệt vai trò (Separation of Concerns). Tổ chức thư mục dự án được mô tả chi tiết như sau:
+Mã nguồn dự án được thiết kế theo kiến trúc phân tầng hướng mô-đun (Modular Layered Architecture), đảm bảo tính mở rộng, dễ bảo trì và tuân thủ nghiêm ngặt nguyên tắc tách biệt vai trò (Separation of Concerns).
 
-\begin{verbatim}
-CrossDomain-HAR-SSL/
-├── config/                  # Quản lý siêu tham số và cấu hình đường dẫn
-│   ├── uci_har_config.py    # Class UCIHARConfig (Label map 6 lớp, split subjects)
-│   ├── motionsense_config.py# Class MotionSenseConfig (Label map, train/val/test subjects)
-│   └── hhar_config.py       # Class HHARConfig (Resampling, lowpass filter, 5 lớp)
-├── datasets/                # Bộ quản lý dữ liệu và DataLoaders
-│   ├── base_dataset.py      # BaseHARDataset (Load file .pt, few-shot stratified sampling)
-│   ├── contrastive_dataset.py# ContrastiveDatasetWrapper (Sinh cặp views weak/strong)
-│   └── crosshar_dataset.py  # CrossHARPretrainDataset & Physical3DAugmentation (6x)
-├── models/                  # Định nghĩa mạng Nơ-ron và các kiến trúc trích xuất
-│   ├── encoders/            # Các khối Backbone trích xuất đặc trưng
-│   │   ├── builder.py       # Hàm factory build_encoder()
-│   │   ├── cnn1d.py         # Class StandardSensorEncoder1D (4 Conv blocks)
-│   │   ├── tstcc_encoder.py # Class TSTCCEncoder (100% khớp base_Model TS-TCC)
-│   │   ├── cnn_transformer.py # Class CNNTransformerEncoder
-│   │   └── vit_1d.py        # Class ViT1DEncoder
-│   ├── heads/               # Lớp chiếu và đầu phân loại
-│   │   └── projection.py    # ProjectionHead (MLP non-linear projection)
-│   ├── ssl/                 # Các mô hình Học tự giám sát hoàn chỉnh
-│   │   ├── contrastive/     # TS_TCC_Model (TC Transformer & CC NT-Xent)
-│   │   ├── prototype/       # PrototypicalHARModel (K=45 SwAV Prototypes)
-│   │   └── masked/          # CrossHARModel (Masked Signal Modeling)
-│   └── har_classifier.py    # Class HARClassifier (Encoder + Classifier Head)
-├── losses/                  # Các hàm mất mát chuyên dụng
-│   ├── nt_xent.py           # Class NTXentLoss (InfoNCE với temperature tau)
-│   └── swav_loss.py         # Class SwAVPrototypeLoss & sinkhorn_knopp
-├── engines/                 # Bộ điều khiển huấn luyện và đánh giá (Trainers)
-│   ├── pretrain_ssl/        # contrastive_trainer.py, crosshar_sequential_trainer.py
-│   ├── transfer/            # finetune_trainer.py, source_classifier_trainer.py
-│   └── evaluation/          # evaluator.py (Tính Accuracy, Macro F1, Confusion Matrix)
-├── scripts/                 # Kịch bản thực thi trực tiếp từ Dòng lệnh (CLI)
-│   ├── 00_preprocess/       # preprocess_uci_har.py, preprocess_motionsense.py, preprocess_hhar.py
-│   ├── 01_baseline/         # run_train_baseline.py, run_eval_baseline.py, run_kfold_baseline.py
-│   ├── 02_pretrain_ssl/     # run_pretrain_contrastive.py, run_pretrain_prototype.py, run_crosshar_pretrain.py
-│   └── 03_cross_domain/     # run_cross_domain.py, run_few_shot.py, run_crosshar_zero_shot.py
-├── checkpoints/             # Lưu trữ trọng số mô hình tốt nhất (.pt)
-├── document/                # Báo cáo kỹ thuật, nhật ký đánh giá và tài liệu hệ thống
-├── experiments/             # Nhật ký lưu trữ thông số thực nghiệm
-└── plots/                   # Đồ thị biểu diễn đường cong loss và biểu đồ đối sánh
-\end{verbatim}
+Hệ thống được tổ chức tổng quát thành 6 mô-đun chức năng chính:
+
+\begin{itemize}
+    \item \textbf{\texttt{config/}}: Quản lý tập trung các siêu tham số hệ thống, thiết lập ánh xạ nhãn (\texttt{LABEL\_MAPPING}), thông số cửa sổ trượt ($L=128, \text{Stride}=64$), và đường dẫn phân chia tập người dùng (Subject-Independent Split) cho từng bộ dữ liệu.
+    \item \textbf{\texttt{datasets/}}: Định nghĩa các lớp quản lý dữ liệu (\texttt{BaseHARDataset}, \texttt{ContrastiveDatasetWrapper}, \texttt{CrossHARPretrainDataset}) hỗ trợ đọc file \texttt{.pt}, chuẩn hóa theo kênh, và thực hiện phân tầng mẫu ít nhãn (Few-shot Stratified Sampling).
+    \item \textbf{\texttt{models/}}: Chứa kiến trúc các mạng trích xuất đặc trưng (Backbones: \texttt{StandardSensorEncoder1D}, \texttt{TSTCCEncoder}, \texttt{CNNTransformerEncoder}, \texttt{ViT1DEncoder}) và các mô hình Học tự giám sát hoàn chỉnh (TS-TCC, SwAV Prototype, CrossHAR).
+    \item \textbf{\texttt{losses/}}: Cài đặt các hàm mất mát chuyên dụng cho SSL bao gồm \texttt{NTXentLoss} (InfoNCE với hệ số nhiệt độ $\tau$) và \texttt{SwAVPrototypeLoss} (kết hợp thuật toán gán cụm mềm trực tuyến \texttt{sinkhorn\_knopp}).
+    \item \textbf{\texttt{engines/}}: Quản lý logic huấn luyện và đánh giá hệ thống, chia tách thành các bộ điều khiển giai đoạn tiền huấn luyện SSL (\texttt{pretrain\_ssl/}), giai đoạn thích ứng miền (\texttt{transfer/}), và đánh giá chỉ số (\texttt{evaluation/}).
+    \item \textbf{\texttt{scripts/}}: Hệ thống các kịch bản thực thi tự động dòng lệnh (CLI) cho phép chạy toàn bộ pipeline từ tiền xử lý dữ liệu (\texttt{00\_preprocess/}), huấn luyện Baseline (\texttt{01\_baseline/}), Pretrain SSL (\texttt{02\_pretrain\_ssl/}) đến chuyển giao liên miền (\texttt{03\_cross\_domain/}).
+\end{itemize}
 
 \subsection{Môi trường thực thi \& Công nghệ}
 Hệ thống được phát triển và chạy thử nghiệm trong môi trường đáp ứng các tiêu chuẩn công nghệ sau:
@@ -55,36 +24,16 @@ Hệ thống được phát triển và chạy thử nghiệm trong môi trườ
 \end{itemize}
 
 \subsection{Quy trình huấn luyện và Giao thức đánh giá}
-Hệ thống vận hành theo pipeline huấn luyện 2 giai đoạn tiêu chuẩn (Two-Stage Pipeline) được minh họa trong Hình~\ref{fig:training_pipeline}.
 
-\begin{figure}[h!]
-\centering
-\begin{verbatim}
-[GIAI ĐOẠN 1: PRETRAIN SSL KHÔNG NHÃN]
-Tập dữ liệu Miền Nguồn (Unlabeled) ──> SSL Pretrain (TS-TCC / SwAV / CrossHAR) ──> Trọng số SSL Encoder
-                                                                                          │
-                                                                                          ▼
-[GIAI ĐOẠN 2: THÍCH ỨNG MIỀN ĐÍCH (FEW-SHOT TRANSFER)]
-Tập dữ liệu Miền Đích (Few-shot Label) ──> Load SSL Encoder ──┬──> Linear Probing (LP - Frozen)
-                                                              └──> Full Fine-Tuning (FT - Unfrozen)
-\end{verbatim}
-\caption{Sơ đồ luồng hai giai đoạn huấn luyện và thích ứng miền.}
-\label{fig:training_pipeline}
-\end{figure}
+Quy trình thực thi được xây dựng theo sơ đồ hai giai đoạn (Two-Stage Pipeline) tiêu chuẩn nhằm đánh giá toàn diện khả năng biểu diễn và tính thích ứng liên miền của mô hình.
 
-Chi tiết hai giai đoạn bao gồm:
-\begin{enumerate}
-    \item \textbf{Giai đoạn 1: Pretrain SSL Không Nhãn (Pre-training Stage)}:
-    \begin{itemize}
-        \item Nạp toàn bộ dữ liệu chưa gán nhãn của miền nguồn (\texttt{dataset\_all.pt}) thông qua \texttt{get\_har\_all\_loader()}.
-        \item Huấn luyện Encoder cùng với các mô-đun SSL (Projection Head, Prototypes, hoặc Decoder) trong 40-50 Epochs sử dụng thuật toán tối ưu Adam với Learning Rate $10^{-3}$.
-        \item Trọng số Encoder sau pretrain được lưu tại đường dẫn \texttt{checkpoints/}.
-    \end{itemize}
-    
-    \item \textbf{Giai đoạn 2: Thích ứng Miền Đích (Transfer Learning \& Evaluation Stage)}:
-    Khởi tạo mô hình \texttt{HARClassifier} sử dụng lại phần khung Encoder từ Giai đoạn 1 và gắn thêm một đầu phân loại ngẫu nhiên \texttt{Linear(128 -> NUM\_CLASSES)}. Đánh giá dưới hai giao thức chuẩn mực:
-    \begin{itemize}
-        \item \textbf{Linear Probing (LP)}: Đóng băng toàn bộ trọng số của Encoder (\texttt{param.requires\_grad = False}). Chỉ huấn luyện duy nhất tham số của đầu phân loại \texttt{Linear}. Giao thức này đánh giá trực tiếp chất lượng của không gian đặc trưng mà SSL học được mà không làm biến đổi Encoder.
-        \item \textbf{Full Fine-Tuning (FT)}: Mở khóa toàn bộ mạng Nơ-ron (\texttt{param.requires\_grad = True}). Áp dụng chiến lược Tốc độ học phân cấp theo tầng (Layer-wise Learning Rate Decay): gán Learning Rate nhỏ cho Encoder ($lr_{\text{backbone}} = 10^{-4}$) để tránh làm phá vỡ cấu trúc đặc trưng đã pretrain, và Learning Rate lớn hơn cho Classifier Head ($lr_{\text{head}} = 10^{-3}$).
-    \end{itemize}
-\end{enumerate}
+\subsubsection{Giai đoạn 1: Tiền huấn luyện tự giám sát (Pre-training Stage)}
+Trong giai đoạn này, mô hình trích xuất đặc trưng (Encoder) được huấn luyện hoàn toàn tự động trên toàn bộ dữ liệu cảm biến chưa gán nhãn của miền nguồn. Quá trình này giúp mạng học các biểu diễn đặc trưng bất biến trước các biến đổi nhiễu và bảo toàn cấu trúc chuỗi thời gian thông qua các tác vụ phụ (Pretext Tasks) như so sánh cặp tương phản, phân cụm nguyên mẫu hoặc khôi phục tín hiệu bị che. Cuối giai đoạn, các trọng số đặc trưng của Encoder được lưu trữ để tái sử dụng cho miền đích.
+
+\subsubsection{Giai đoạn 2: Thích ứng miền đích và Đánh giá (Transfer \& Evaluation Stage)}
+Sau khi hoàn tất tiền huấn luyện, Encoder được kết nối với một đầu phân loại tuyến tính mới để thực hiện chuyển giao sang miền đích với số lượng nhãn bị hạn chế. Hệ thống tiến hành đánh giá theo hai giao thức chuẩn mực:
+
+\begin{itemize}
+    \item \textbf{Đánh giá tuyến tính (Linear Probing - LP)}: Đóng băng toàn bộ các lớp trọng số của Encoder và chỉ huấn luyện duy nhất tham số của đầu phân loại trên dữ liệu miền đích. Giao thức này giúp đo lường trực tiếp chất lượng, độ cô đọng và tính tổng quát của không gian đặc trưng đã học được từ giai đoạn tự giám sát mà không làm thay đổi các trọng số gốc.
+    \item \textbf{Tinh chỉnh toàn bộ mạng (Full Fine-Tuning - FT)}: Mở khóa toàn bộ các tham số của cả Encoder và đầu phân loại để huấn luyện kết thúc-đến-kết thúc (End-to-End). Nhằm bảo vệ các đặc trưng tổng quát đã học được ở giai đoạn đầu, hệ thống áp dụng tốc độ học phân cấp (Layer-wise Learning Rate), giữ mức tốc độ học nhỏ ở các lớp trích xuất đặc trưng và tốc độ học lớn hơn ở đầu phân loại.
+\end{itemize}

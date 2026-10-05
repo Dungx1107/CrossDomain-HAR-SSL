@@ -9,6 +9,7 @@ ENGINE: HUẤN LUYỆN SELF-SUPERVISED LEARNING (TS-TCC)
 
 import csv
 import json
+import traceback
 from pathlib import Path
 from typing import Optional, Union
 import torch
@@ -60,7 +61,7 @@ def train_contrastive_encoder(
         batch_size=batch_size,
         shuffle=True,
         drop_last=True if len(dataset) >= batch_size else False,
-        num_workers=use_workers,  # Dùng đa luồng CPU để chuẩn bị dữ liệu song song
+        num_workers=use_workers,
         pin_memory=(device == "cuda"),
         persistent_workers=(use_workers > 0)
     )
@@ -127,10 +128,9 @@ def train_contrastive_encoder(
             x_s = x_s.to(device, non_blocking=True)
 
             optimizer.zero_grad()
-            loss, loss_tc, loss_cc = ssl_model(x_w, x_s)  # Nhận 3 giá trị trực tiếp từ TSTCCModel
+            loss, loss_tc, loss_cc = ssl_model(x_w, x_s)
             loss.backward()
 
-            # Giữ an toàn gradient cho khối Attention Transformer
             gnorm = nn.utils.clip_grad_norm_(ssl_model.parameters(), max_norm=2.0)
             optimizer.step()
 
@@ -152,7 +152,6 @@ def train_contrastive_encoder(
             "grad_norm": avg_gnorm
         })
 
-        # Lưu trọng số encoder của mô hình có loss thấp nhất
         if avg_loss < best_loss:
             best_loss = avg_loss
             torch.save(ssl_model.encoder.state_dict(), checkpoint_path)
@@ -180,7 +179,7 @@ def train_contrastive_encoder(
 
     print(f"📊 Đã lưu lịch sử loss tại: {csv_history_path}")
 
-    # 2. Lưu Plot
+    # LƯU PLOT
     dataset_name = Path(data_path).parent.name
     plot_loss_history(history, loss_plot_path, title=f"{backbone_type.upper()} on {dataset_name}")
 
@@ -203,13 +202,9 @@ def train_contrastive_encoder(
             )
             print_complexity_report(complexity_info)
 
-
         except Exception as e:
-
             print(f"⚠️ Đo trên {device} thất bại ({type(e).__name__}: {e})")
-
             traceback.print_exc()
-
             print("🔄 Đang thử đo lại trên CPU...")
 
             try:
@@ -248,7 +243,6 @@ def train_contrastive_encoder(
 
 
 def plot_loss_history(history: list, save_path: Path, title: str):
-    """Vẽ 2 subplots: (1) Đường cong Loss thành phần và (2) Tỷ lệ cân bằng TC/CC."""
     epochs = [h["epoch"] for h in history]
     loss_total = [h["loss_total"] for h in history]
     loss_tc = [h["loss_tc"] for h in history]
@@ -257,7 +251,6 @@ def plot_loss_history(history: list, save_path: Path, title: str):
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 8), sharex=True)
 
-    # Subplot 1: Convergence
     ax1.plot(epochs, loss_total, label="Total Loss", color="#1f77b4", linewidth=2.0)
     ax1.plot(epochs, loss_tc, label="Temporal Contrasting (TC)", color="#ff7f0e", linestyle="--")
     ax1.plot(epochs, loss_cc, label="Contextual Contrasting (CC)", color="#2ca02c", linestyle=":")
@@ -266,7 +259,6 @@ def plot_loss_history(history: list, save_path: Path, title: str):
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(fontsize=9)
 
-    # Subplot 2: Loss Dynamics Ratio (TC / CC)
     ax2.plot(epochs, tc_cc_ratio, label="Ratio (TC / CC)", color="#9467bd", linewidth=1.5)
     ax2.axhline(y=1.0, color="gray", linestyle="-.", alpha=0.6)
     ax2.set_title("Balance Dynamics: TC / CC Ratio", fontsize=11)

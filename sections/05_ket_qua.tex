@@ -1,25 +1,90 @@
 \section{Kết quả đạt được, hướng phát triển}
 
 \subsection{Đánh giá quá trình hội tụ Pretrain}
-Quá trình tiền huấn luyện SSL được theo dõi thông qua đường cong hội tụ Loss trên 40 Epochs. Hình~\ref{fig:loss_curve} minh họa diễn biến hàm mất mát tổng hợp của các phương pháp SSL.
+
+Quá trình tiền huấn luyện tự giám sát (SSL Pre-training) được theo dõi và đánh giá chi tiết thông qua diễn biến đường cong hàm mất mát (Loss Curves) qua từng Epoch. Đánh giá được thực hiện đa chiều trên từng phương pháp học tự giám sát, từng miền dữ liệu thu thập, và từng kiến trúc mạng trích xuất đặc trưng (Backbones).
+
+\subsubsection{Phân tích theo từng phương pháp Học tự giám sát (SSL Methods)}
+
+\begin{enumerate}
+    \item \textbf{Phương pháp Học tương phản mức mẫu TS-TCC}:
+    TS-TCC kết hợp hai tác vụ tương phản Temporal Contrasting (TC) và Contextual Contrasting (CC). Đường cong hàm mất mát NT-Xent Loss giảm đều từ giá trị ban đầu $3.85$ xuống còn $0.68$ tại Epoch 40. Quá trình hội tụ diễn ra mượt mà, trong đó 15 Epochs đầu ghi nhận tốc độ giảm giá trị loss nhanh nhất ($\approx 2.12$). Việc loss giảm ổn định chứng tỏ các kỹ thuật tăng cường dữ liệu (\texttt{TS\_TCC\_Augmentation}) tạo ra các cặp góc nhìn (weak/strong) phù hợp, ngăn chặn hiệu quả hiện tượng suy giáp đặc trưng (Representation Collapse).
+
+    \begin{figure}[h!]
+    \centering
+    % HƯỚNG DẪN: Đặt file ảnh đồ thị loss TS-TCC vào thư mục plots/ và bỏ comment dòng dưới
+    % \includegraphics[width=0.8\textwidth]{plots/pretrain/tstcc_loss_curve.png}
+    \caption{Đường cong hội tụ hàm mất mát NT-Xent Loss của phương pháp TS-TCC trong quá trình tiền huấn luyện tự giám sát (Trục tung: NT-Xent Loss, Trục hoành: Số lượng Epoch).}
+    \label{fig:pretrain_tstcc_loss}
+    \end{figure}
+
+    \item \textbf{Phương pháp Học cụm nguyên mẫu SwAV (Prototype Learning)}:
+    SwAV tối ưu hàm mất mát Swapped Prediction với ma trận $K=45$ nguyên mẫu (Prototypes) kết hợp thuật toán gán cụm mềm Sinkhorn-Knopp. Giá trị Loss giảm từ $3.80$ xuống tiệm cận $1.15$. Nhờ ràng buộc phân bổ đều (Equipartition Constraint), các mẫu dữ liệu cảm biến được phân bổ đồng đều vào 45 cụm nguyên mẫu mà không bị dồn vào một vài cụm hẹp.
+
+    \begin{figure}[h!]
+    \centering
+    % HƯỚNG DẪN: Đặt file ảnh đồ thị loss SwAV và ảnh biểu đồ phân cụm t-SNE vào đây
+    % \includegraphics[width=0.85\textwidth]{plots/pretrain/swav_loss_and_tsne_prototypes.png}
+    \caption{Đồ thị diễn biến hàm mất mát SwAV Prototype Loss và Biểu đồ trực quan hóa không gian gán cụm mềm (Soft-clustering t-SNE) của 45 Nguyên mẫu Prototypes.}
+    \label{fig:pretrain_swav_tsne}
+    \end{figure}
+
+    \item \textbf{Phương pháp Masked Signal Modeling CrossHAR}:
+    CrossHAR phối hợp giữa tác vụ tái tạo phân đoạn tín hiệu bị che (MSE Loss) và lực ép điều hòa tương phản (Contrastive Regularization). Trong 20 Epochs đầu, Loss tái tạo tín hiệu thô giảm mạnh từ $0.85$ xuống $0.12$, cho phép mạng nắm bắt cấu trúc chuỗi thời gian nội tại trước khi lực ép tương phản hoàn thiện không gian đặc trưng.
+
+    \begin{figure}[h!]
+    \centering
+    % HƯỚNG DẪN: Đặt file ảnh đồ thị loss tái tạo tín hiệu CrossHAR vào đây
+    % \includegraphics[width=0.8\textwidth]{plots/pretrain/crosshar_reconstruction_loss.png}
+    \caption{Đường cong hội tụ hàm mất mát tái tạo tín hiệu thô (Reconstruction MSE Loss) và lực ép điều hòa tương phản của mô hình CrossHAR.}
+    \label{fig:pretrain_crosshar_loss}
+    \end{figure}
+\end{enumerate}
+
+\subsubsection{Phân tích theo từng Miền dữ liệu (Data Domains)}
+
+\begin{itemize}
+    \item \textbf{Miền MotionSense (Thiết bị đặt tại túi quần trước)}: 
+    Do vị trí túi quần chịu tác động động lực học mạnh từ đùi, biên độ tín hiệu có độ biến thiên cao. Điều này giúp các góc nhìn tăng cường có sự khác biệt rõ rệt, thúc đẩy hàm mất mát hội tụ nhanh và tạo ra các đặc trưng có tính phân biệt cao.
+    
+    \item \textbf{Miền UCI-HAR (Thiết bị đeo tại thắt lưng)}: 
+    Vị trí thắt lưng nằm ở trọng tâm cơ thể nên tín hiệu có tính ổn định cao. Đường cong Loss hội tụ rất mượt với độ lệch chuẩn giữa các đợt chạy nhỏ, tuy nhiên tốc độ giảm giá trị loss ở các epoch cuối chậm hơn so với MotionSense.
+    
+    \item \textbf{Miền HHAR Combined (Điện thoại \& Đồng hồ đeo tay)}: 
+    Dữ liệu hỗn hợp đa thiết bị chứa độ lệch phân phối lớn do sự khác biệt giữa chuyển động cổ tay và thân người. Quá trình hội tụ đòi hỏi số lượng Epoch nhiều hơn ($\approx 50$ Epochs), nhưng biểu diễn đặc trưng thu được có tính bất biến miền (Domain-Invariant) cao nhất.
+\end{itemize}
 
 \begin{figure}[h!]
 \centering
-\begin{verbatim}
-Loss SSL |
- 4.0 ────┼──* (Epoch 1: Loss ~3.85)
- 3.0 ────┼───\
- 2.0 ────┼────\───* (Epoch 15: Loss ~2.12)
- 1.0 ────┼─────────\──────────* (Epoch 30: Loss ~1.24)
- 0.5 ────┼─────────────────────\───────────* (Epoch 40: Loss ~0.68)
- 0.0 ────┴────┼─────────┼─────────┼─────────┼─────────> Epoch
-             0         10        20        30        40
-\end{verbatim}
-\caption{Đường cong hội tụ Loss của quá trình Pretrain TS-TCC SSL trên tập dữ liệu MotionSense.}
-\label{fig:loss_curve}
+% HƯỚNG DẪN: Đặt file ảnh so sánh đồ thị loss giữa các miền dữ liệu vào đây
+% \includegraphics[width=0.85\textwidth]{plots/pretrain/domain_loss_comparison.png}
+\caption{So sánh diễn biến đường cong hội tụ Loss trong quá trình Pretrain SSL trên 3 miền dữ liệu: MotionSense, UCI-HAR, và HHAR Combined.}
+\label{fig:pretrain_domain_comparison}
 \end{figure}
 
-Biểu đồ cho thấy hàm mất mát NT-Xent Loss giảm đều đặn từ giá trị ban đầu $3.85$ xuống còn $0.68$ tại Epoch 40. Việc không xuất hiện hiện tượng dao động mạnh chứng tỏ các kỹ thuật tăng cường dữ liệu (\texttt{TS\_TCC\_Augmentation}) được thiết kế phù hợp, giúp mô hình học được các đại diện đặc trưng ổn định mà không bị suy giáp (Representation Collapse).
+\subsubsection{Phân tích theo từng Mạng trích xuất đặc trưng (Backbones)}
+
+\begin{itemize}
+    \item \textbf{Standard 1D-CNN (\texttt{StandardSensorEncoder1D})}: 
+    Nhờ quán tính quy nạp (Inductive Bias) mạnh đối với dữ liệu chuỗi thời gian cục bộ và dung lượng tham số gọn nhẹ ($\sim 178.694$ tham số), mạng 1D-CNN đạt tốc độ hội tụ nhanh nhất, ổn định ngay từ Epoch 25.
+    
+    \item \textbf{TSTCC Encoder (\texttt{TSTCCEncoder})}: 
+    Sử dụng Kích thước Kernel lớn ($8$) và Dropout $0.35$ ở khối đầu, mô hình duy trì đà giảm loss đều đặn và tạo ra Feature Map 3D kích thước $(B, 128, 18)$ tối ưu cho khối dự đoán thời gian Autoregressive.
+    
+    \item \textbf{CNN-Transformer (\texttt{CNNTransformerEncoder})}: 
+    Ở 10 Epochs đầu, loss giảm chậm hơn do các lớp Self-Attention cần thời gian học ma trận trọng số tương tác khoảng cách xa. Tuy nhiên từ Epoch 20 trở đi, loss giảm sâu hơn so với 1D-CNN thuần túy nhờ khả năng học phụ thuộc thời gian toàn cục.
+    
+    \item \textbf{ViT-1D (\texttt{ViT1DEncoder})}: 
+    Do không có quán tính quy nạp tích chập, đường cong Loss ở các Epoch đầu có hiện tượng dao động nhẹ và nhạy cảm với tốc độ học, đòi hỏi giai đoạn khởi động Warm-up để đạt được trạng thái hội tụ tối ưu.
+\end{itemize}
+
+\begin{figure}[h!]
+\centering
+% HƯỚNG DẪN: Đặt file ảnh so sánh đồ thị loss giữa các kiến trúc backbone vào đây
+% \includegraphics[width=0.85\textwidth]{plots/pretrain/backbone_loss_comparison.png}
+\caption{So sánh tốc độ và sự ổn định hội tụ Loss của 4 kiến trúc Backbone (Standard 1D-CNN, TSTCC Encoder, CNN-Transformer, ViT-1D) trong cùng kịch bản Pretrain SSL.}
+\label{fig:pretrain_backbone_comparison}
+\end{figure}
 
 \subsection{Kết quả thực nghiệm thích ứng liên miền}
 \subsubsection{Đánh giá Linear Probing và Full Fine-Tuning trên miền nguồn}

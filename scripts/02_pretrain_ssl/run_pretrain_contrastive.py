@@ -5,6 +5,7 @@ SCRIPT: PRETRAIN TS-TCC CONTRASTIVE ENCODER
 """
 
 import argparse
+import os
 from pathlib import Path
 import sys
 import torch
@@ -18,6 +19,9 @@ from config.motionsense_config import MotionSenseConfig
 from config.uci_har_config import UCIHARConfig
 from config.hhar_config import HHARConfig
 from engines.pretrain_ssl.contrastive_trainer import train_contrastive_encoder
+
+IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
+OUTPUT_ROOT = Path("/kaggle/working") if IS_KAGGLE else PROJECT_ROOT
 
 # ================== ARGUMENT PARSER ==================
 parser = argparse.ArgumentParser(
@@ -71,16 +75,11 @@ DATASET_MAP = {
     ),
 }
 
-
 def main():
     print("=" * 80)
-    print(
-        f"🌟 BẮT ĐẦU PRETRAIN SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}"
-    )
-    print(
-        f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch"
-        f" Size: {args.batch_size}"
-    )
+    print(f"🌟 BẮT ĐẦU PRETRAIN SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}")
+    print(f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size}")
+    print(f"📁 Thư mục xuất dữ liệu (Output Root): {OUTPUT_ROOT}")
     print("=" * 80)
 
     for name in args.datasets:
@@ -90,8 +89,12 @@ def main():
 
         data_path, in_channels = DATASET_MAP[name]
 
+        if not data_path.exists():
+            print(f"❌ Không tìm thấy file dữ liệu: {data_path}")
+            continue
+
         save_dir = (
-                PROJECT_ROOT
+                OUTPUT_ROOT
                 / "checkpoints"
                 / "ssl_pretrain"
                 / "contrastive"
@@ -116,6 +119,7 @@ def main():
             batch_size=args.batch_size,
             device=DEVICE,
             measure_complexity=True,
+            num_workers=2 if DEVICE == "cuda" else 0  # [SỬA LỖI 3]: Kiểm soát an toàn đa tiến trình CPU
         )
 
         print(f"   📁 Checkpoint : {results['best_ckpt']}")
@@ -125,7 +129,6 @@ def main():
     print("\n" + "=" * 80)
     print("🎉 HOÀN THÀNH PRETRAIN!")
     print("=" * 80)
-
 
 if __name__ == "__main__":
     main()
