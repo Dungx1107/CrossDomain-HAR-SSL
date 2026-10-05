@@ -8,10 +8,14 @@ Chuẩn hóa đối số và pipeline tương thích hoàn toàn với run_pretr
 import sys
 import math
 import argparse
+import csv
+import json
+import os
 from pathlib import Path
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
@@ -26,6 +30,10 @@ from datasets.contrastive_dataset import ContrastiveDatasetWrapper
 from models.encoders.builder import build_encoder
 from models.ssl.prototype.cluster_model import PrototypicalHARModel
 from losses.swav_loss import SwAVPrototypeLoss
+
+# Tự động điều hướng lưu Checkpoint về working directory của Kaggle
+IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
+OUTPUT_ROOT = Path("/kaggle/working") if IS_KAGGLE else PROJECT_ROOT
 
 # ================== ARGUMENT PARSER ==================
 parser = argparse.ArgumentParser(description="Pretrain Prototype SSL (SwAV-inspired) trên UCI-HAR & MotionSense")
@@ -98,12 +106,7 @@ TAU_S = 0.1  # Softmax temperature
 EPSILON = 0.05  # Sinkhorn temperature
 
 
-def adjust_lr(optimizer,
-              epoch,
-              total_epochs,
-              base_lr,
-              warmup_epochs
-              ):
+def adjust_lr(optimizer, epoch, total_epochs, base_lr, warmup_epochs):
     """Linear warmup + Cosine annealing scheduler."""
     if epoch <= warmup_epochs:
         lr = base_lr * epoch / max(1, warmup_epochs)
@@ -115,15 +118,42 @@ def adjust_lr(optimizer,
     return lr
 
 
-def train_prototype_single_domain(
-        domain_name: str,
-        data_path: Path,
-        in_channels: int,
-        backbone_type: str
-):
-    save_dir = PROJECT_ROOT / "checkpoints" / "ssl_pretrain" / "prototype" / domain_name / backbone_type
+def plot_prototype_history(history: list, save_path: Path, title: str, max_entropy: float):
+    """Vẽ 2 subplots: (1) Đường cong Loss và (2) Diễn biến Entropy."""
+    epochs = [h["epoch"] for h in history]
+    losses = [h["loss_total"] for h in history]
+    entropies = [h["entropy"] for h in history]
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 8), sharex=True)
+
+    ax1.plot(epochs, losses, label="SwAV Loss", color="#d62728", linewidth=2.0)
+    ax1.set_title(f"Prototype Pretraining Convergence: {title}", fontsize=12, fontweight="bold")
+    ax1.set_ylabel("Loss Value", fontsize=10)
+    ax1.grid(True, linestyle="--", alpha=0.5)
+    ax1.legend(fontsize=9)
+
+    ax2.plot(epochs, entropies, label="Cluster Entropy", color="#1f77b4", linewidth=1.5)
+    ax2.axhline(y=max_entropy, color="gray", linestyle="-.", alpha=0.6, label=f"Max Entropy ({max_entropy:.2f})")
+    ax2.axhline(y=max_entropy * 0.3, color="red", linestyle=":", alpha=0.6, label="Collapse Warning Threshold")
+    ax2.set_title("Cluster Assignment Entropy", fontsize=11)
+    ax2.set_xlabel("Epoch", fontsize=10)
+    ax2.set_ylabel("Entropy", fontsize=10)
+    ax2.grid(True, linestyle="--", alpha=0.5)
+    ax2.legend(fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+    print(f"📈 Đã lưu biểu đồ phân tích loss và entropy tại: {save_path}")
+
+
+def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels: int, backbone_type: str):
+    save_dir = OUTPUT_ROOT / "checkpoints" / "ssl_pretrain" / "prototype" / domain_name / backbone_type
     save_dir.mkdir(parents=True, exist_ok=True)
+
     ckpt_path = save_dir / f"prototype_{backbone_type}_encoder_pretrained_{domain_name}.pt"
+    csv_history_path = save_dir / "loss_history.csv"
+    loss_plot_path = save_dir / "loss_curve.png"
 
     print(f"\n🚀 ĐANG PRETRAIN PROTOTYPE: {domain_name.upper()}")
     print(f"📂 Dữ liệu: {data_path}")
@@ -135,7 +165,7 @@ def train_prototype_single_domain(
         print(f"❌ File dữ liệu không tồn tại: {data_path}. Bỏ qua domain này!")
         return
 
-    # 1. Dataset & DataLoader (bắt buộc drop_last=True cho Sinkhorn-Knopp)
+    # 1. Dataset & DataLoader
     dataset = ContrastiveDatasetWrapper(data_path)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
@@ -158,6 +188,7 @@ def train_prototype_single_domain(
 
     max_entropy = math.log(args.num_prototypes)
     best_loss = float("inf")
+    history = []
 
     # 4. Vòng lặp huấn luyện
     for epoch in range(1, args.epochs + 1):
@@ -178,7 +209,6 @@ def train_prototype_single_domain(
 
             loss.backward()
 
-            # Cập nhật song song cả mạng và prototype ngay từ epoch 1
             opt_network.step()
             opt_proto.step()
 
@@ -194,7 +224,13 @@ def train_prototype_single_domain(
         avg_loss = total_loss / max(1, n_batches)
         avg_entropy = entropy_acc / max(1, n_batches)
 
-        # Cảnh báo nếu entropy thấp (nguy cơ collapse)
+        history.append({
+            "epoch": epoch,
+            "loss_total": avg_loss,
+            "entropy": avg_entropy,
+            "lr": cur_lr
+        })
+
         if avg_entropy < (0.3 * max_entropy):
             print(f"⚠️  Cảnh báo sụp cụm: Entropy={avg_entropy:.2f} < {0.3 * max_entropy:.2f} tại epoch {epoch}")
 
@@ -210,16 +246,29 @@ def train_prototype_single_domain(
                 f"Entropy: {avg_entropy:.2f}/{max_entropy:.2f}"
             )
 
-    # Fallback nếu chưa lưu được
+    # 5. Fallback nếu chưa lưu được
     if not ckpt_path.exists():
         torch.save(model.encoder.state_dict(), ckpt_path)
         print(f"   ⚠️ Fallback: Đã lưu checkpoint tại epoch cuối.")
+
+    # 6. Ghi log lịch sử ra CSV
+    with open(csv_history_path, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "loss_total", "entropy", "lr"])
+        for row in history:
+            writer.writerow([
+                row["epoch"], f"{row['loss_total']:.6f}", f"{row['entropy']:.6f}", f"{row['lr']:.6e}"
+            ])
+
+    print(f"📊 Đã lưu lịch sử loss tại: {csv_history_path}")
+
+    # 7. Vẽ và lưu Plot
+    plot_prototype_history(history, loss_plot_path, title=f"{backbone_type.upper()} on {domain_name}", max_entropy=max_entropy)
 
     print(f"   📁 Checkpoint : {ckpt_path}")
     print(f"   📉 Best Loss  : {best_loss:.5f}")
     print(f"   📊 Tổng số mẫu: {len(dataset):,}")
 
-    # Thu hồi bộ nhớ GPU
     del model, backbone, criterion, opt_network, opt_proto, loader, dataset
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -228,8 +277,8 @@ def train_prototype_single_domain(
 def main():
     print("=" * 80)
     print(f"🌟 BẮT ĐẦU PRETRAIN PROTOTYPE SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}")
-    print(
-        f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size} | K: {args.num_prototypes}")
+    print(f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size} | K: {args.num_prototypes}")
+    print(f"📁 Output Root: {OUTPUT_ROOT}")
     print("=" * 80)
 
     for name in args.datasets:
