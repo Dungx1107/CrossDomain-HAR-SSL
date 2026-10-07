@@ -1,0 +1,24 @@
+{
+    "experiment_type": "fraction_based_cross_domain",
+    "source_domain": "motionsense",
+    "target_domain": "uci_har",
+    "pretrain_method": "contrastive",
+    "backbone": "cnn_transformer",
+    "pretrain_checkpoint_loaded": "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/ssl_pretrain/contrastive/motionsense/cnn_transformer/tstcc_cnn_transformer_encoder_pretrained_motionsense.pt",
+    "encoder_trainable_parameters": 309248,
+    "fractions_tested": [
+        0.01
+    ],
+    "seeds": [
+        42
+    ],
+    "finetune_epochs": 2,
+    "batch_size": 16,
+    "target_classes": [
+        "Walking",
+        "Upstairs",
+        "Downstairs",
+        "Sitting",
+        "Standing"
+    ]
+}

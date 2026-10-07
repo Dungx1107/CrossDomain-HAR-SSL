@@ -1,0 +1,65 @@
+{
+    "protocol": "full_finetuning",
+    "fraction_name": "1_percent",
+    "fraction_value": 0.01,
+    "num_seeds_tested": 1,
+    "overall_metrics": {
+        "accuracy_mean": 16.76,
+        "accuracy_std": 0.0,
+        "macro_f1_mean": 9.68,
+        "macro_f1_std": 0.0,
+        "macro_precision_mean": 7.82,
+        "macro_recall_mean": 17.15,
+        "cohen_kappa_mean": -0.0386
+    },
+    "per_class_f1_mean": {
+        "Walking": 0.0,
+        "Upstairs": 0.0,
+        "Downstairs": 23.93,
+        "Sitting": 24.47,
+        "Standing": 0.0
+    },
+    "seed_quick_lookup": {
+        "42": {
+            "accuracy": 16.76,
+            "macro_f1": 9.68
+        }
+    },
+    "aggregated_confusion_matrix": [
+        [
+            0,
+            0,
+            47,
+            449,
+            0
+        ],
+        [
+            0,
+            0,
+            63,
+            408,
+            0
+        ],
+        [
+            0,
+            0,
+            101,
+            319,
+            0
+        ],
+        [
+            0,
+            0,
+            188,
+            303,
+            0
+        ],
+        [
+            0,
+            0,
+            25,
+            507,
+            0
+        ]
+    ]
+}
