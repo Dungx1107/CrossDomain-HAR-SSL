@@ -43,7 +43,7 @@ parser.add_argument("--backbone", type=str, default="cnn_transformer",
 parser.add_argument("--epochs", type=int, default=40)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--seeds", nargs="+", type=int, default=[42, 100, 2024, 7, 99])
-parser.add_argument("--fractions", nargs="+", type=float, default=[0.01, 0.05, 0.10, 1.0])
+parser.add_argument("--fractions", nargs="+", type=float, default=[0.01, 0.05, 0.10])
 parser.add_argument("--pairs", nargs="+", type=str, required=True, help="e.g., motionsense:uci_har")
 args = parser.parse_args()
 
@@ -109,7 +109,7 @@ def run_fraction_experiment(src, tgt):
     val_loader = DataLoader(TensorDataset(X_v_full, y_v_full), batch_size=64, shuffle=False)
 
     # Thư mục lưu kết quả evaluation được tách biệt khỏi pretrain
-    base_save_dir = OUTPUT_ROOT / "outputs_evaluation" / args.method / args.backbone / f"{src}_to_{tgt}"
+    base_save_dir = OUTPUT_ROOT / "outputs_evaluation" / "cross_fraction" / args.method / args.backbone / f"{src}_to_{tgt}"
     base_save_dir.mkdir(parents=True, exist_ok=True)
     evaluator = ModelEvaluator(class_names=COMMON_CLASS_NAMES, device=torch.device(DEVICE))
 
@@ -153,7 +153,6 @@ def run_fraction_experiment(src, tgt):
                 seed_dir.mkdir(parents=True, exist_ok=True)
 
                 x_sub_tr, y_sub_tr = sample_subset_by_ratio(X_tr_full, y_tr_full, fraction=frac, seed=seed)
-
 
                 tr_loader = DataLoader(TensorDataset(x_sub_tr, y_sub_tr),
                                        batch_size=min(args.batch_size, len(x_sub_tr)), shuffle=True)

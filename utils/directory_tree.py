@@ -69,7 +69,8 @@ def main():
     # PATH BÊN TRONG PROJECT
     # ========================================================
 
-    path_string = "checkpoints/cross_domain_fewshot/crosshar/cnn_transformer"
+    # path_string = "checkpoints/cross_domain_fewshot/crosshar/cnn_transformer"
+    path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/outputs_evaluation/cross_k_shot"
 
     # Ghép với PROJECT_ROOT
     root = PROJECT_ROOT / path_string

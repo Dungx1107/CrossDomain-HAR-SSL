@@ -81,6 +81,8 @@ wandb/
 runs/
 results/
 outputs/
+outputs_evaluation/
+sections/
 
 # Giữ lại file .gitkeep để duy trì cấu trúc thư mục rỗng
 !.gitkeep

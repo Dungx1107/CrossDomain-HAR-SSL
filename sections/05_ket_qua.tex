@@ -87,49 +87,91 @@ Quá trình tiền huấn luyện tự giám sát (SSL Pre-training) được th
 \end{figure}
 
 \subsection{Kết quả thực nghiệm thích ứng liên miền}
-\subsubsection{Đánh giá Linear Probing và Full Fine-Tuning trên miền nguồn}
-Bảng~\ref{tab:in_domain_eval} trình bày kết quả đối sánh giữa hai giao thức Linear Probing (LP - đóng băng Encoder) và Full Fine-Tuning (FT - mở khóa toàn mạng) trên tập dữ liệu MotionSense qua 5 giá trị Seed ngẫu nhiên (Mean $\pm$ Std).
 
-\begin{table}[h!]
+Điểm số báo cáo là giá trị trung bình kèm độ lệch chuẩn ($\text{Mean} \pm \text{Std}$) của chỉ số Macro F1-Score (\%) qua các lần chạy độc lập trên các tỷ lệ nhãn miền đích (1\%, 5\%, 10\%, 100\%).
+
+\subsubsection{Chiều chuyển giao 1: UCI\_HAR $\rightarrow$ MotionSense}
+
+\begin{table}[H]
 \centering
-\caption{Kết quả đánh giá hiệu năng phân loại trên MotionSense theo các tỷ lệ nhãn (Mean $\pm$ Std qua 5 Seeds).}
-\label{tab:in_domain_eval}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|c|c|c|c|c|c|}
-\hline
-\textbf{Tỷ lệ nhãn (\%)} & \textbf{Số mẫu Train} & \textbf{LP Macro F1 (\%)} & \textbf{LP Accuracy (\%)} & \textbf{FT Macro F1 (\%)} & \textbf{FT Accuracy (\%)} \\ \hline
-$0.1\%$ & $12$ & $50.01 \pm 8.75$ & $56.28 \pm 7.15$ & $52.91 \pm 8.81$ & $59.60 \pm 8.17$ \\ \hline
-$0.5\%$ & $61$ & $67.31 \pm 1.29$ & $69.00 \pm 1.31$ & $71.07 \pm 2.97$ & $72.45 \pm 2.81$ \\ \hline
-$1.0\%$ & $123$ & $71.65 \pm 1.47$ & $72.86 \pm 1.03$ & $74.89 \pm 1.52$ & $75.53 \pm 1.11$ \\ \hline
-$5.0\%$ & $618$ & $79.66 \pm 0.60$ & $79.91 \pm 0.84$ & $83.23 \pm 1.72$ & $83.18 \pm 1.81$ \\ \hline
-$10.0\%$ & $1237$ & $81.35 \pm 0.67$ & $81.60 \pm 0.65$ & $\mathbf{84.70} \pm 0.80$ & $\mathbf{84.71} \pm 0.82$ \\ \hline
-$100.0\%$ & $12375$ & $82.36 \pm 0.22$ & $82.77 \pm 0.27$ & $84.48 \pm 0.59$ & $85.53 \pm 0.59$ \\ \hline
-\end{tabular}%
-}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{llcXXXX}
+\toprule
+\textbf{Backbone} & \textbf{SSL Method} & \textbf{Protocol} & \textbf{1\%} & \textbf{5\%} & \textbf{10\%} & \textbf{100\%} \\
+\midrule
+\multirow{4}{*}{\textbf{Standard}} 
+  & \multirow{2}{*}{Contrastive} & LP & $67.07 \pm 6.00\%$ & $85.27 \pm 2.92\%$ & $83.78 \pm 3.98\%$ & $84.37 \pm 0.73\%$ \\
+  &                              & FT & $81.65 \pm 5.06\%$ & $87.71 \pm 1.85\%$ & $86.26 \pm 1.97\%$ & $86.04 \pm 3.47\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $60.94 \pm 6.27\%$ & $82.68 \pm 2.30\%$ & $83.81 \pm 1.95\%$ & $88.26 \pm 0.71\%$ \\
+  &                              & FT & $82.30 \pm 2.93\%$ & $90.97 \pm 0.38\%$ & $90.46 \pm 1.30\%$ & $92.93 \pm 0.78\%$ \\
+\midrule
+\multirow{4}{*}{\textbf{TSTCC}} 
+  & \multirow{2}{*}{Contrastive} & LP & $58.37 \pm 6.58\%$ & $83.26 \pm 1.56\%$ & $86.26 \pm 0.96\%$ & $85.29 \pm 0.17\%$ \\
+  &                              & FT & $76.18 \pm 6.89\%$ & $88.99 \pm 1.82\%$ & $91.03 \pm 2.88\%$ & $92.50 \pm 0.08\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $54.12 \pm 7.58\%$ & $77.57 \pm 3.38\%$ & $79.99 \pm 2.02\%$ & $86.28 \pm 0.42\%$ \\
+  &                              & FT & $73.64 \pm 12.46\%$ & $91.02 \pm 2.06\%$ & $92.08 \pm 1.40\%$ & $90.17 \pm 0.72\%$ \\
+\midrule
+\multirow{4}{*}{\textbf{CNN-Trans}} 
+  & \multirow{2}{*}{Contrastive} & LP & $61.00 \pm 2.99\%$ & $64.13 \pm 1.14\%$ & $67.32 \pm 2.45\%$ & $78.27 \pm 0.96\%$ \\
+  &                              & FT & $75.53 \pm 3.79\%$ & $81.86 \pm 2.96\%$ & $83.19 \pm 1.90\%$ & $86.65 \pm 0.78\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $59.24 \pm 7.41\%$ & $76.16 \pm 2.15\%$ & $78.96 \pm 2.06\%$ & $85.41 \pm 1.33\%$ \\
+  &                              & FT & $75.97 \pm 4.46\%$ & $81.01 \pm 3.96\%$ & $83.57 \pm 2.19\%$ & $85.34 \pm 5.34\%$ \\
+\midrule
+\multirow{4}{*}{\textbf{ViT-1D}} 
+  & \multirow{2}{*}{Contrastive} & LP & $52.46 \pm 1.72\%$ & $59.73 \pm 2.17\%$ & $62.46 \pm 1.14\%$ & $75.42 \pm 1.47\%$ \\
+  &                              & FT & $72.23 \pm 3.81\%$ & $82.12 \pm 2.28\%$ & $83.88 \pm 2.12\%$ & $83.17 \pm 2.03\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $61.18 \pm 3.71\%$ & $75.89 \pm 4.14\%$ & $77.63 \pm 2.93\%$ & $80.21 \pm 0.23\%$ \\
+  &                              & FT & $75.85 \pm 3.50\%$ & $81.71 \pm 3.43\%$ & $82.60 \pm 2.65\%$ & $84.30 \pm 1.13\%$ \\
+\bottomrule
+\end{tabularx}
+\caption{Kết quả chuyển giao miền UCI\_HAR $\rightarrow$ MotionSense qua các tỷ lệ nhãn (LP: Linear Probing, FT: Full Fine-Tuning).}
 \end{table}
 
-\textbf{Phân tích}: Ngay cả khi chỉ sử dụng $1.0\%$ dữ liệu có nhãn ($123$ mẫu), giao thức Linear Probing đạt Macro F1 $71.65\%$, và Full Fine-Tuning đạt $74.89\%$. Điều này khẳng định Encoder tiền huấn luyện SSL đã giải nén thành công các thông tin ngữ cảnh hữu ích mà không cần nhiều nhãn giám sát. Khi tăng tỷ lệ nhãn lên $10\%$, Full Fine-Tuning đạt Macro F1 $84.70\%$, tương đương (thậm chí vượt nhẹ) so với khi huấn luyện trên $100\%$ nhãn thô ($84.48\%$).
+\subsubsection{Chiều chuyển giao 2: MotionSense $\rightarrow$ UCI\_HAR}
 
-\subsubsection{Kết quả chuyển giao miền Few-Shot Cross-Domain}
-Bảng~\ref{tab:cross_domain_eval} so sánh hiệu năng thích ứng Few-shot giữa hai chiều chuyển giao miền: $\text{MotionSense} \rightarrow \text{UCI-HAR}$ và $\text{UCI-HAR} \rightarrow \text{MotionSense}$.
-
-\begin{table}[h!]
+\begin{table}[H]
 \centering
-\caption{Kết quả chuyển giao Few-Shot SSL TS-TCC giữa MotionSense và UCI-HAR (Macro F1 \%).}
-\label{tab:cross_domain_eval}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|c|c|c|}
-\hline
-\textbf{Tỷ lệ nhãn miền đích (\%)} & \textbf{MotionSense $\rightarrow$ UCI-HAR (Macro F1 \%)} & \textbf{UCI-HAR $\rightarrow$ MotionSense (Macro F1 \%)} \\ \hline
-Zero-shot ($0\%$) & $3.97 \pm 0.00$ (Thất bại do Domain Shift) & $17.56 \pm 0.00$ (Linear Probed Direct) \\ \hline
-$0.1\%$ & $45.83 \pm 6.23$ & $54.31 \pm 6.92$ \\ \hline
-$0.5\%$ & $67.97 \pm 6.32$ & $67.11 \pm 2.78$ \\ \hline
-$1.0\%$ & $74.49 \pm 2.18$ & $74.01 \pm 1.65$ \\ \hline
-$5.0\%$ & $85.72 \pm 1.26$ & $79.29 \pm 0.99$ \\ \hline
-$10.0\%$ & $88.19 \pm 1.52$ & $79.85 \pm 1.90$ \\ \hline
-$100.0\%$ & $\mathbf{95.02} \pm 0.64$ & $79.91 \pm 1.80$ \\ \hline
-\end{tabular}%
-}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{llcXXXX}
+\toprule
+\textbf{Backbone} & \textbf{SSL Method} & \textbf{Protocol} & \textbf{1\%} & \textbf{5\%} & \textbf{10\%} & \textbf{100\%} \\
+\midrule
+\multirow{4}{*}{\textbf{Standard}} 
+  & \multirow{2}{*}{Contrastive} & LP & $65.45 \pm 2.00\%$ & $74.21 \pm 1.93\%$ & $76.44 \pm 3.01\%$ & $84.41 \pm 0.27\%$ \\
+  &                              & FT & $76.53 \pm 3.37\%$ & $86.38 \pm 4.35\%$ & $90.34 \pm 1.02\%$ & $92.85 \pm 0.36\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $64.95 \pm 3.32\%$ & $75.51 \pm 1.64\%$ & $78.95 \pm 1.01\%$ & $86.25 \pm 0.25\%$ \\
+  &                              & FT & $78.70 \pm 2.63\%$ & $89.83 \pm 1.10\%$ & $90.24 \pm 0.61\%$ & $91.94 \pm 0.21\%$ \\
+\midrule
+\multirow{4}{*}{\textbf{TSTCC}} 
+  & \multirow{2}{*}{Contrastive} & LP & $55.88 \pm 4.95\%$ & $67.20 \pm 2.68\%$ & $70.01 \pm 2.87\%$ & $80.84 \pm 0.96\%$ \\
+  &                              & FT & $65.18 \pm 4.39\%$ & $88.37 \pm 1.30\%$ & $90.49 \pm 0.43\%$ & $92.03 \pm 0.07\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $54.18 \pm 2.49\%$ & $70.03 \pm 3.27\%$ & $74.64 \pm 1.20\%$ & $84.42 \pm 0.13\%$ \\
+  &                              & FT & $65.95 \pm 2.83\%$ & $87.48 \pm 1.27\%$ & $90.43 \pm 0.72\%$ & $92.00 \pm 0.42\%$ \\
+\midrule
+\multirow{4}{*}{\textbf{CNN-Trans}} 
+  & \multirow{2}{*}{Contrastive} & LP & $53.72 \pm 1.41\%$ & $63.14 \pm 1.69\%$ & $65.80 \pm 1.21\%$ & $71.59 \pm 0.62\%$ \\
+  &                              & FT & $69.29 \pm 4.30\%$ & $85.23 \pm 1.49\%$ & $87.49 \pm 1.65\%$ & $90.16 \pm 1.55\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $63.25 \pm 5.64\%$ & $77.81 \pm 1.10\%$ & $79.06 \pm 2.19\%$ & $84.44 \pm 0.67\%$ \\
+  &                              & FT & $76.45 \pm 5.52\%$ & $86.47 \pm 3.69\%$ & $89.25 \pm 1.62\%$ & $91.23 \pm 1.38\%$ \\
+\midrule
+\multirow{4}{*}{\textbf{ViT-1D}} 
+  & \multirow{2}{*}{Contrastive} & LP & $27.64 \pm 4.32\%$ & $35.30 \pm 1.36\%$ & $42.60 \pm 1.56\%$ & $47.57 \pm 0.91\%$ \\
+  &                              & FT & $51.33 \pm 5.97\%$ & $75.00 \pm 2.06\%$ & $79.16 \pm 2.68\%$ & $86.16 \pm 1.07\%$ \\
+  \cmidrule(lr){2-7}
+  & \multirow{2}{*}{Prototype}   & LP & $33.79 \pm 7.89\%$ & $40.39 \pm 3.28\%$ & $44.68 \pm 0.90\%$ & $48.36 \pm 0.17\%$ \\
+  &                              & FT & $56.90 \pm 3.57\%$ & $77.33 \pm 1.97\%$ & $80.69 \pm 1.56\%$ & $88.09 \pm 0.62\%$ \\
+\bottomrule
+\end{tabularx}
+\caption{Kết quả chuyển giao miền MotionSense $\rightarrow$ UCI\_HAR qua các tỷ lệ nhãn (LP: Linear Probing, FT: Full Fine-Tuning).}
 \end{table}
 
 \subsection{Phân tích Ma trận nhầm lẫn \& Điểm nghẽn vật lý}
