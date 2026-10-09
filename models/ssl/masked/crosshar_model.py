@@ -7,7 +7,7 @@ MODULE: CROSSHAR ARCHITECTURE (PRETRAIN HIERARCHICAL MODEL & CLASSIFIER - 5 LỚ
 import sys
 import math
 from pathlib import Path
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict
 
 import torch
 import torch.nn as nn
@@ -169,6 +169,10 @@ class CrossHARPretrainModel(nn.Module):
 
         z = self.encoder(x_masked)
         x_recon = self.decoder(z)
+
+        # TỰ ĐỘNG ĐỒNG BỘ CHIỀU DÀI: Khớp mọi loại backbone (1D-CNN, Transformer, ViT...)
+        if x_recon.shape[-1] != x_raw.shape[-1]:
+            x_recon = F.interpolate(x_recon, size=x_raw.shape[-1], mode='linear', align_corners=False)
 
         mask_f = mask.float()
         loss_m = torch.sum(((x_recon - x_raw) ** 2) * mask_f) / (mask_f.sum() + 1e-8)
