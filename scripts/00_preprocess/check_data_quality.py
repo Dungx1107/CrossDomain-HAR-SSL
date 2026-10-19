@@ -6,9 +6,6 @@ Mục đích:
 1. Kiểm tra cấu trúc (shape), nhãn, subject, nan/inf của từng bộ dữ liệu.
 2. Kiểm tra độ lớn gia tốc tĩnh (Static Gravity Check) để đảm bảo có trọng lực.
 3. So sánh tương quan thống kê giữa Phone và Watch.
-
-Cách dùng:
-    python utils/check_data_quality.py
 ===============================================================================
 """
 
@@ -20,7 +17,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 

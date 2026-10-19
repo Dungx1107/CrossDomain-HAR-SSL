@@ -13,12 +13,12 @@ plt.rcParams['axes.titlesize'] = 13
 plt.rcParams['legend.fontsize'] = 10
 plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.available else 'default')
 
-os.makedirs('plots', exist_ok=True)
+os.makedirs('', exist_ok=True)
 
 # =========================================================
 # ĐỌC VÀ LỌC DỮ LIỆU TỪ CSV
 # =========================================================
-csv_path = '/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/outputs_evaluation/aggregated_k_shot_detailed.csv'
+csv_path = '/outputs_evaluation/aggregated_k_shot_detailed.csv'
 df = pd.read_csv(csv_path)
 
 # Lọc lấy tất cả kịch bản có 100-shot

@@ -70,7 +70,7 @@ def main():
     # ========================================================
 
     # path_string = "checkpoints/cross_domain_fewshot/crosshar/cnn_transformer"
-    path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/outputs_evaluation/cross_k_shot"
+    path_string = "/outputs_evaluation/cross_k_shot"
     # path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/outputs_evaluation/cross_fraction"
     # path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/cross_domain_fewshot/crosshar"
     # path_string = "checkpoints/ssl_pretrain/crosshar"

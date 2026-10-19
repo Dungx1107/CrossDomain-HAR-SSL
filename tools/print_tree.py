@@ -13,26 +13,23 @@ IGNORE_DIRS = {
     "node_modules",
     ".pytest_cache",
     ".mypy_cache",
+    ".github",
+
     "experiments",
     "document",
-    "data/raw",
-    "data/explore_data",
+    "outputs_evaluation",
+
     "raw",
     "explore_data",
-    "cross_domain_fraction",
-    "cross_domain_fewshot",
-    "sections",
-    "plots",
-    "crosshar"
-
 }
 
 IGNORE_FILES = {
     "*.pyc",
-    # "*.pt",
+    "*.pt",
     "*.pth",
     "*.png",
-    "*.json"
+    "*.json",
+    "*.csv"
 }
 
 

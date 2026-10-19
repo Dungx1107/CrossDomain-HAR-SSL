@@ -13,12 +13,12 @@ plt.rcParams['legend.fontsize'] = 10
 plt.rcParams['figure.titlesize'] = 14
 plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.available else 'default')
 
-os.makedirs('plots', exist_ok=True)
+os.makedirs('', exist_ok=True)
 
 # =========================================================
 # ĐỌC VÀ TIỀN XỬ LÝ DỮ LIỆU
 # =========================================================
-csv_path = '/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/outputs_evaluation/aggregated_k_shot_detailed.csv'
+csv_path = '/outputs_evaluation/aggregated_k_shot_detailed.csv'
 df = pd.read_csv(csv_path)
 
 # Trích xuất số Shot ra dạng int để dễ sort (vd: '50_shot' -> 50)
@@ -60,7 +60,7 @@ ax.set_xticks(shots)
 ax.set_ylim(50, 85)
 ax.legend(loc='lower right', frameon=True)
 plt.tight_layout()
-plt.savefig('plots/k_shot_scaling_curves.png')
+plt.savefig('../../plots/k_shot_scaling_curves.png')
 plt.close()
 
 
@@ -112,7 +112,7 @@ for i, gap in enumerate(gaps):
                 ha='center', va='bottom', fontsize=9, fontweight='bold', color='#333333')
 
 plt.tight_layout()
-plt.savefig('plots/protocol_adaptation_gap.png')
+plt.savefig('../../plots/protocol_adaptation_gap.png')
 plt.close()
 
 
@@ -141,7 +141,7 @@ for bar in bars:
     ax.text(bar.get_x() + bar.get_width()/2.0, yval + 2, f'{yval:.1f}%', ha='center', va='bottom', fontweight='bold', fontsize=11)
 
 plt.tight_layout()
-plt.savefig('plots/wrist_domain_bottleneck.png')
+plt.savefig('../../plots/wrist_domain_bottleneck.png')
 plt.close()
 
 print("Đã tạo thành công 3 biểu đồ (đọc trực tiếp từ aggregated_k_shot_detailed.csv) tại thư mục plots/!")
