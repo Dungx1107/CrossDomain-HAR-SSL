@@ -83,8 +83,11 @@ results/
 outputs/
 outputs_evaluation/
 sections/
-document/
 plots/
+
+document/*
+!document/ssl_implementation_docs
+
 
 # Giữ lại file .gitkeep để duy trì cấu trúc thư mục rỗng
 !.gitkeep
