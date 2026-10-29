@@ -1,9 +1,14 @@
+\usepackage[utf8]{inputenc}  % Hoặc dùng trình biên dịch XeLaTeX / LuaLaTeX
+\usepackage[T1]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath}    % Cung cấp lệnh \text{}, các môi trường toán học nâng cao
+\usepackage{amstext}    % Hỗ trợ định dạng văn bản trong toán học
+\usepackage{amsfonts}   % Các ký hiệu toán học (nếu cần)
+\usepackage{amssymb}    % Các ký hiệu logic, tập hợp
+
 \section{Tóm tắt lý thuyết, giải pháp, thuật toán}
-
 \subsection{Tiền xử lý dữ liệu và Phân chia thử nghiệm}
-
 Quá trình tiền xử lý dữ liệu cảm biến được thực hiện chi tiết và riêng biệt cho từng tập dữ liệu, tuân thủ nghiêm ngặt nguyên tắc xử lý tín hiệu số (DSP), chuẩn hóa kích thước cửa sổ và phân chia dữ liệu độc lập theo người dùng (Subject-Independent Split) nhằm loại bỏ rò rỉ dữ liệu.
-
 \subsubsection{Tiền xử lý trên tập dữ liệu MotionSense}
 \begin{itemize}
     \item \textbf{Đặc trưng cảm biến trích xuất ($6$ kênh)}: 
@@ -22,7 +27,6 @@ Quá trình tiền xử lý dữ liệu cảm biến được thực hiện chi 
     \end{itemize}
     \item \textbf{Ánh xạ nhãn ($6$ lớp)}: Walking ($0$), Upstairs ($1$), Downstairs ($2$), Sitting ($3$), Standing ($4$), Jogging ($5$).
 \end{itemize}
-
 \subsubsection{Tiền xử lý trên tập dữ liệu UCI-HAR}
 \begin{itemize}
     \item \textbf{Đặc trưng cảm biến trích xuất ($6$ kênh)}: 
@@ -40,7 +44,6 @@ Quá trình tiền xử lý dữ liệu cảm biến được thực hiện chi 
     \end{itemize}
     \item \textbf{Ánh xạ nhãn ($6$ lớp)}: Walking ($0$), Upstairs ($1$), Downstairs ($2$), Sitting ($3$), Standing ($4$), Laying ($5$).
 \end{itemize}
-
 \subsubsection{Tiền xử lý trên tập dữ liệu HHAR (Heterogeneous HAR)}
 \begin{itemize}
     \item \textbf{Đặc trưng cảm biến trích xuất ($6$ kênh)}: 

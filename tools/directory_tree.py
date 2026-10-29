@@ -1,25 +1,7 @@
 from pathlib import Path
 
-
-# ============================================================
-# PROJECT ROOT
-# ============================================================
-
-# directory_tree.py nằm trong:
-#
-# CrossDomain-HAR-SSL/
-# └── utils/
-#     └── directory_tree.py
-#
-# .parent       -> utils/
-# .parent.parent -> CrossDomain-HAR-SSL/
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-
-# ============================================================
-# PRINT TREE
-# ============================================================
 
 def print_tree(path: Path, prefix=""):
     """
@@ -31,7 +13,7 @@ def print_tree(path: Path, prefix=""):
         children = sorted(
             path.iterdir(),
             key=lambda p: (
-                not p.is_dir(),   # Folder trước, file sau
+                not p.is_dir(),  # Folder trước, file sau
                 p.name.lower()
             )
         )
@@ -51,7 +33,6 @@ def print_tree(path: Path, prefix=""):
 
         # Nếu là thư mục -> đệ quy
         if child.is_dir():
-
             next_prefix = prefix + (
                 "    " if is_last else "│   "
             )
@@ -59,31 +40,15 @@ def print_tree(path: Path, prefix=""):
             print_tree(child, next_prefix)
 
 
-# ============================================================
-# MAIN
-# ============================================================
-
 def main():
-
-    # ========================================================
     # PATH BÊN TRONG PROJECT
-    # ========================================================
-
-    # path_string = "checkpoints/cross_domain_fewshot/crosshar/cnn_transformer"
-    path_string = "/outputs_evaluation/cross_k_shot"
-    # path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/outputs_evaluation/cross_fraction"
-    # path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/checkpoints/cross_domain_fewshot/crosshar"
-    # path_string = "checkpoints/ssl_pretrain/crosshar"
+    path_string = "/home/dungx/Workspace/AI_ML_Projects/Human_Activity_Recognition/CrossDomain-HAR-SSL/document/references"
 
     # Ghép với PROJECT_ROOT
     root = PROJECT_ROOT / path_string
 
     # Chuẩn hóa đường dẫn
     root = root.resolve()
-
-    # ========================================================
-    # VALIDATE
-    # ========================================================
 
     if not root.exists():
         print("\n[ERROR] Đường dẫn không tồn tại:")
@@ -95,10 +60,6 @@ def main():
         print(root)
         return
 
-    # ========================================================
-    # PRINT
-    # ========================================================
-
     print()
     print(root)
     print_tree(root)
@@ -106,4 +67,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

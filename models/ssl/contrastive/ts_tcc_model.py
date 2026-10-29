@@ -108,7 +108,6 @@ class TSTCCModel(nn.Module):
             loss_tc    : scalar (chỉ để log)
             loss_cc    : scalar (chỉ để log)
         """
-        device = x_weak.device
 
         # ---------------------------------------------------------------
         # 1. Encoder: (B, C, T_in) -> (B, feature_dim, T_out)
