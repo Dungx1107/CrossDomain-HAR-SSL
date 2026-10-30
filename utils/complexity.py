@@ -107,3 +107,41 @@ def print_complexity_report(info: dict):
     if info.get("thop_status") != "Success":
         print(f"⚠️ Ghi chú FLOPs/MACs           : {info['thop_status']}")
     print("=" * 75 + "\n")
+
+def measure_encoder_from_checkpoint(
+        checkpoint_path,
+        backbone_type: str,
+        in_channels: int,
+        input_size=(1, 6, 128),
+        device="cuda",
+        build_fn=None,
+):
+    """
+    Build encoder theo backbone_type, load state_dict từ checkpoint,
+    đo complexity. Nếu fail trên device -> fallback CPU.
+    Trả về dict complexity_info (luôn có, kể cả khi lỗi).
+    """
+    from pathlib import Path
+    import torch
+
+    def _try_measure(dev):
+        # build_fn được inject từ ngoài để tránh import vòng (complexity.py không biết models/encoders)
+        encoder = build_fn(backbone_type=backbone_type, in_channels=in_channels)
+        state = torch.load(checkpoint_path, map_location=torch.device(dev), weights_only=True)
+        missing, unexpected = encoder.load_state_dict(state, strict=False)
+        if missing or unexpected:
+            print(f"⚠️ [LoadState] Missing: {len(missing)}, Unexpected: {len(unexpected)}")
+        encoder = encoder.to(dev)
+        info = measure_model_complexity(encoder, input_size=input_size, device=torch.device(dev))
+        print_complexity_report(info)
+        return info
+
+    try:
+        return _try_measure(device)
+    except Exception as e:
+        print(f"⚠️ Đo trên {device} thất bại ({type(e).__name__}: {e})")
+        try:
+            return _try_measure("cpu")
+        except Exception as e_cpu:
+            print(f"❌ Không thể đo complexity trên CPU: {e_cpu}")
+            return {"error": f"{device}: {e} | cpu: {e_cpu}"}

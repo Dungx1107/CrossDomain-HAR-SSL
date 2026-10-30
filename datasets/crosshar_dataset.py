@@ -16,10 +16,9 @@ Triển khai đúng 100% đặc tả bài báo CrossHAR:
 
 import sys
 from pathlib import Path
-from typing import Tuple, Union, Optional
-import numpy as np
+from typing import Tuple
+
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

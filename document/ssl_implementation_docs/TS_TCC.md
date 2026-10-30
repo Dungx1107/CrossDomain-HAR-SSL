@@ -51,8 +51,8 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 | TSTCCModel | `models/ssl/contrastive/ts_tcc_model.py` | Wrapper gộp encoder + TC + CC |
 | NTXentLoss | `losses/nt_xent.py` | Contextual Contrasting loss |
 | ContrastiveDatasetWrapper | `datasets/contrastive_dataset.py` | Dataset sinh (x_weak, x_strong) |
-| Contrastive Trainer | `engines/pretrain_ssl/contrastive_trainer.py` | Training loop SSL |
-| Entry point | `scripts/02_pretrain_ssl/run_pretrain_contrastive.py` | CLI script khởi chạy |
+| Contrastive Trainer | `../../engines/pretrain_ssl/tstcc_trainer.py` | Training loop SSL |
+| Entry point | `../../scripts/02_pretrain_ssl/run_pretrain_tstcc.py` | CLI script khởi chạy |
 
 ---
 
@@ -60,10 +60,10 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 
 ### 2.1. Entry point và cấu hình
 
-**File:** `scripts/02_pretrain_ssl/run_pretrain_contrastive.py`
+**File:** `../../scripts/02_pretrain_ssl/run_pretrain_tstcc.py`
 - **Vai trò:** Script CLI chính để khởi chạy pretraining TS-TCC.
 - **Nhận argument:** `--backbone` (default: `vit_1d`), `--epochs` (default: 60), `--batch_size` (default: 64), `--datasets` (default: `["uci_har", "motionsense"]`).
-- **Gọi:** `train_contrastive_encoder()` trong `engines/pretrain_ssl/contrastive_trainer.py`.
+- **Gọi:** `train_contrastive_encoder()` trong `../../engines/pretrain_ssl/tstcc_trainer.py`.
 
 **Cấu hình dataset được đọc từ:**
 - `config/motionsense_config.py` → `MotionSenseConfig.DATA_ALL_PATH`
@@ -81,7 +81,7 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 - **Không sử dụng nhãn** — SSL là unsupervised.
 - Nạp từ key `"samples"` trong dict `.pt`.
 
-**Được gọi từ:** `contrastive_trainer.py` dòng 57: `dataset = ContrastiveDatasetWrapper(data_path)`
+**Được gọi từ:** `tstcc_trainer.py` dòng 57: `dataset = ContrastiveDatasetWrapper(data_path)`
 
 ### 2.3. Augmentation module
 
@@ -124,7 +124,7 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 
 ### 2.9. Training engine
 
-**File:** `engines/pretrain_ssl/contrastive_trainer.py`
+**File:** `../../engines/pretrain_ssl/tstcc_trainer.py`
 - **Function:** `train_contrastive_encoder()`
 - Vòng lặp huấn luyện hoàn chỉnh + lưu checkpoint + ghi CSV log.
 
@@ -428,7 +428,7 @@ x_strong (B,6,128) ──→  TSTCCEncoder  ──→  z_strong (B,128,18) ─�
 
 ## Phần 7. Quy trình Self-Supervised Pretraining
 
-### 7.1. Khởi tạo (từ `contrastive_trainer.py`)
+### 7.1. Khởi tạo (từ `tstcc_trainer.py`)
 
 ```python
 # Encoder backbone
@@ -458,7 +458,7 @@ optimizer = AdamW(
 
 > **Lưu ý:** Chỉ có **một optimizer** cho toàn bộ mô hình. Không có học phân lớp (layerwise LR) trong pretraining.
 
-### 7.3. Một training iteration (xác minh từ `contrastive_trainer.py`, dòng 126–140)
+### 7.3. Một training iteration (xác minh từ `tstcc_trainer.py`, dòng 126–140)
 
 ```python
 for x_w, x_s in loader:      # x_w, x_s: (B, 6, 128)
@@ -788,7 +788,7 @@ Dùng `strict=True` — nếu key không khớp (ví dụ checkpoint `tstcc` enc
 
 ### 12.3. Vấn đề tương thích checkpoint
 
-> **Cần kiểm chứng:** Script `run_pretrain_contrastive.py` tên checkpoint là `tstcc_<backbone>_encoder_pretrained_<dataset>.pt`. Backbone có thể là `vit_1d`, `standard`, hay `cnn_transformer`. Script `run_few_shot.py` load từ `checkpoints/ssl_pretrain/contrastive/<src>/<backbone>/`. Cần đảm bảo `--backbone` arg khi pretrain và khi run_few_shot phải khớp nhau.
+> **Cần kiểm chứng:** Script `run_pretrain_tstcc.py` tên checkpoint là `tstcc_<backbone>_encoder_pretrained_<dataset>.pt`. Backbone có thể là `vit_1d`, `standard`, hay `cnn_transformer`. Script `run_few_shot.py` load từ `checkpoints/ssl_pretrain/contrastive/<src>/<backbone>/`. Cần đảm bảo `--backbone` arg khi pretrain và khi run_few_shot phải khớp nhau.
 
 ---
 
@@ -863,13 +863,13 @@ python scripts/03_cross_domain/run_few_shot.py \
 
 | Hyperparameter | Giá trị mặc định | Vị trí khai báo | Ý nghĩa |
 |---|---|---|---|
-| Backbone | `vit_1d` (script) / `tstcc` (model default) | `run_pretrain_contrastive.py` | Loại encoder |
-| Batch size | 64 | `run_pretrain_contrastive.py` | Số mẫu/batch |
-| Learning rate | 3e-4 | `contrastive_trainer.py` | Không có arg override |
-| Weight decay | 3e-4 | `contrastive_trainer.py` | Không có arg override |
-| Epochs | 60 | `run_pretrain_contrastive.py` | Số epoch pretrain |
-| Optimizer | AdamW | `contrastive_trainer.py` | — |
-| Grad clip | 2.0 | `contrastive_trainer.py` | max_norm |
+| Backbone | `vit_1d` (script) / `tstcc` (model default) | `run_pretrain_tstcc.py` | Loại encoder |
+| Batch size | 64 | `run_pretrain_tstcc.py` | Số mẫu/batch |
+| Learning rate | 3e-4 | `tstcc_trainer.py` | Không có arg override |
+| Weight decay | 3e-4 | `tstcc_trainer.py` | Không có arg override |
+| Epochs | 60 | `run_pretrain_tstcc.py` | Số epoch pretrain |
+| Optimizer | AdamW | `tstcc_trainer.py` | — |
+| Grad clip | 2.0 | `tstcc_trainer.py` | max_norm |
 | Timesteps (TC) | 3 | `TSTCCModel.__init__` | K bước dự đoán |
 | Lambda1 (L_TC) | 1.0 | `TSTCCModel.__init__` | Trọng số TC |
 | Lambda2 (L_CC) | 0.7 | `TSTCCModel.__init__` | Trọng số CC |
@@ -939,12 +939,12 @@ python scripts/03_cross_domain/run_few_shot.py \
 - Trạng thái: **Cần kiểm chứng thêm**
 
 **3. Default backbone `vit_1d` trong run_pretrain_contrastive.py**
-- File: `scripts/02_pretrain_ssl/run_pretrain_contrastive.py`, dòng 33: `default="vit_1d"`
+- File: `../../scripts/02_pretrain_ssl/run_pretrain_tstcc.py`, dòng 33: `default="vit_1d"`
 - Nhưng `TSTCCModel` được thiết kế với `TSTCCEncoder` (output 18 timestep). Nếu dùng `vit_1d`, seq_len sẽ khác.
 - Trạng thái: **Cần kiểm chứng** — xem `vit_1d` encoder output shape để tính t_samples range.
 
 **4. Checkpoint selection không có validation**
-- File: `contrastive_trainer.py`, dòng 155
+- File: `tstcc_trainer.py`, dòng 155
 - Checkpoint được lưu theo training loss, không có validation set
 - Khác biệt với CrossHAR (có val loss)
 - Trạng thái: **Phát hiện cần chú ý** — không nhất thiết là lỗi nhưng có thể dẫn đến overfitting checkpoint

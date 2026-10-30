@@ -47,7 +47,7 @@ class TSTCCModel(nn.Module):
         encoder: nn.Module = None,
         in_channels: int = 6,
         feature_dim: int = 128,
-        timesteps: int = 3,
+        timesteps: int = 6,
         tc_hidden_dim: int = 64,
         tc_depth: int = 4,
         tc_heads: int = 4,
@@ -61,7 +61,7 @@ class TSTCCModel(nn.Module):
             encoder       : Backbone (mặc định TSTCCEncoder 3-block).
             in_channels   : Số kênh cảm biến (6).
             feature_dim   : Số kênh đặc trưng encoder (128).
-            timesteps     : K bước tương lai cần dự đoán trong TC (3 theo config HAR).
+            timesteps     : K bước tương lai cần dự đoán trong TC (6 theo config HAR).
             tc_hidden_dim : Chiều ẩn Transformer trong TC (64).
             tc_depth      : Số layer Transformer trong TC (4).
             tc_heads      : Số head attention (4).
@@ -102,7 +102,6 @@ class TSTCCModel(nn.Module):
         Args:
             x_weak   : (B, in_channels, seq_len)
             x_strong : (B, in_channels, seq_len)
-
         Returns:
             loss_total : scalar
             loss_tc    : scalar (chỉ để log)

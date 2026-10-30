@@ -27,9 +27,9 @@ if str(PROJECT_ROOT) not in sys.path:
 IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 OUTPUT_ROOT = Path("/kaggle/working") if IS_KAGGLE else PROJECT_ROOT
 
-from config.uci_har_config import UCIHARConfig
-from config.motionsense_config import MotionSenseConfig
-from config.hhar_config import HHARConfig
+from config.datasets.uci_har_config import UCIHARConfig
+from config.datasets.motionsense_config import MotionSenseConfig
+from config.datasets.hhar_config import HHARConfig
 from utils.sampling import sample_subset_by_ratio
 from engines.transfer.finetune_trainer import train_and_eval_finetune
 from engines.evaluation.evaluator import ModelEvaluator
@@ -54,15 +54,25 @@ NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
 DOMAIN_DATA_PATHS = {
     "motionsense": {"train": Path(MotionSenseConfig.PROCESSED_TRAIN_PATH),
                     "val": Path(MotionSenseConfig.PROCESSED_VAL_PATH),
-                    "test": Path(MotionSenseConfig.PROCESSED_TEST_PATH), "ch": 6},
-    "uci_har": {"train": Path(UCIHARConfig.PROCESSED_TRAIN_PATH), "val": Path(UCIHARConfig.PROCESSED_VAL_PATH),
-                "test": Path(UCIHARConfig.PROCESSED_TEST_PATH), "ch": 6},
-    "hhar_phone": {"train": HHARConfig.PROCESSED_DIR_PHONE / "train.pt",
-                   "val": HHARConfig.PROCESSED_DIR_PHONE / "val.pt", "test": HHARConfig.PROCESSED_DIR_PHONE / "test.pt",
-                   "ch": 6},
-    "hhar_watch": {"train": HHARConfig.PROCESSED_DIR_WATCH / "train.pt",
-                   "val": HHARConfig.PROCESSED_DIR_WATCH / "val.pt", "test": HHARConfig.PROCESSED_DIR_WATCH / "test.pt",
-                   "ch": 6},
+                    "test": Path(MotionSenseConfig.PROCESSED_TEST_PATH),
+                    "ch": 6},
+
+    "uci_har": {"train": Path(UCIHARConfig.PROCESSED_TRAIN_PATH),
+                "val": Path(UCIHARConfig.PROCESSED_VAL_PATH),
+                "test": Path(UCIHARConfig.PROCESSED_TEST_PATH),
+                "ch": 6},
+
+    "hhar_phone": {
+        "train": Path(HHARConfig.PROCESSED_TRAIN_PATH_PHONE),
+        "val": Path(HHARConfig.PROCESSED_VAL_PATH_PHONE),
+        "test": Path(HHARConfig.PROCESSED_TEST_PATH_PHONE),
+        "ch": 6},
+
+    "hhar_watch": {
+        "train": Path(HHARConfig.PROCESSED_TRAIN_PATH_WATCH),
+        "val": Path(HHARConfig.PROCESSED_VAL_PATH_WATCH),
+        "test": Path(HHARConfig.PROCESSED_TEST_PATH_WATCH),
+        "ch": 6},
 }
 
 

@@ -5,7 +5,7 @@ TIỀN XỬ LÝ VÀ ĐÓNG GÓI DỮ LIỆU: HHAR (PHONE, WATCH & COMBINED)
 2. Nhóm theo (User, Device, gt) để bảo toàn tính thuần nhất của nhãn.
 3. Chia đoạn theo gaps > 1.0s, áp bộ lọc Low-pass 10Hz và nội suy tuyến tính về 50Hz.
 4. Trượt cửa sổ 128 mẫu (stride 64) với MIN_SAMPLES = 256.
-5. Đóng gói riêng hhar_phone, hhar_watch và bản gộp hhar_combined cho SSL.
+5. Đóng gói riêng hhar_phone, hhar_watch cho SSL.
 ===============================================================================
 """
 
@@ -17,12 +17,12 @@ import torch
 from scipy.signal import butter, filtfilt
 from pathlib import Path
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../.."))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.hhar_config import HHARConfig
+from config.datasets.hhar_config import HHARConfig
 
 RAW_DATA_DIR = HHARConfig.RAW_DATA_DIR
 LABEL_MAP = HHARConfig.LABEL_MAPPING
@@ -243,40 +243,7 @@ def main():
         device_name="HHAR_WATCH"
     )
 
-    # Đóng gói bộ gộp HHAR Combined cho SSL Pretraining
-    if phone_windows and watch_windows:
-        combined_dir = HHARConfig.PROCESSED_DIR_COMBINED
-        os.makedirs(combined_dir, exist_ok=True)
-
-        X_combined = torch.cat([
-            torch.tensor(np.array(phone_windows), dtype=torch.float32),
-            torch.tensor(np.array(watch_windows), dtype=torch.float32),
-        ], dim=0)
-
-        y_combined = torch.cat([
-            torch.tensor(np.array(phone_labels), dtype=torch.long),
-            torch.tensor(np.array(watch_labels), dtype=torch.long),
-        ], dim=0)
-
-        subs_combined = np.concatenate([
-            np.array(phone_subjects, dtype=np.int64),
-            np.array(watch_subjects, dtype=np.int64),
-        ])
-
-        torch.save({
-            "samples": X_combined,
-            "labels": y_combined,
-            "subjects": torch.tensor(subs_combined, dtype=torch.long),
-        }, combined_dir / "dataset_all.pt")
-
-        print("\n" + "=" * 80)
-        print(f"🌐 ĐÃ TẠO TẬP PRETRAIN KẾT HỢP (COMBINED): {combined_dir / 'dataset_all.pt'}")
-        print(f"   -> Tổng số mẫu: {X_combined.shape} (N, 6, 128)")
-        print(f"   -> Phân phối nhãn: {torch.bincount(y_combined).tolist()}")
-        print("=" * 80)
-
     print("\n🎉 HOÀN THÀNH TIỀN XỬ LÝ TOÀN BỘ HHAR!")
-
 
 if __name__ == "__main__":
     main()

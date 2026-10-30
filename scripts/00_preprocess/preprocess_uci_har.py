@@ -15,16 +15,17 @@ import sys
 import numpy as np
 import pandas as pd
 import torch
+from pathlib import Path
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../.."))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.uci_har_config import UCIHARConfig
+from config.datasets.uci_har_config import UCIHARConfig
 
 RAW_UCI_DIR = UCIHARConfig.RAW_DATA_DIR
-OUTPUT_DIR = UCIHARConfig.PROCESSED_DIR
+OUTPUT_DIR = UCIHARConfig.PROCESSED_DATA_DIR
 SIGNAL_NAMES = UCIHARConfig.SIGNAL_NAMES
 LABEL_MAPPING = UCIHARConfig.LABEL_MAPPING
 VAL_SUBJECTS_UCI = UCIHARConfig.VAL_SUBJECTS

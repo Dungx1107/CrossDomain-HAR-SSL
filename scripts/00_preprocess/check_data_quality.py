@@ -9,7 +9,6 @@ Mục đích:
 ===============================================================================
 """
 
-import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -17,48 +16,61 @@ import numpy as np
 import pandas as pd
 import torch
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.hhar_config import HHARConfig
-from config.motionsense_config import MotionSenseConfig
-from config.uci_har_config import UCIHARConfig
+from config.datasets.hhar_config import HHARConfig
+from config.datasets.motionsense_config import MotionSenseConfig
+from config.datasets.uci_har_config import UCIHARConfig
+from config.datasets.registry import DATASETS
 
-# Danh mục các dataset cần kiểm tra tự động
-DATASETS = {
-    "UCI-HAR": {
-        "path": UCIHARConfig.DATA_ALL_PATH,
-        "class_names": UCIHARConfig.CLASS_NAMES,
-        "expected_subjects": 30,
-        "static_labels": [3, 4],  # Sitting, Standing
+# Metadata bổ sung — CHỈ chứa thông tin mà registry không có.
+# Path lấy từ registry; class_names / subjects / static_labels tính tự động.
+DATASET_META = {
+    "uci_har": {
+        "display_name": "UCI-HAR",
+        "config_cls": UCIHARConfig,
+        "fallback_subjects": 30,   # UCI-HAR có 30 subject, config không list đủ
     },
-    "MotionSense": {
-        "path": MotionSenseConfig.DATA_ALL_PATH,
-        "class_names": MotionSenseConfig.CLASS_NAMES,
-        "expected_subjects": 24,
-        "static_labels": [3, 4],  # Sitting, Standing
+    "motion_sense": {
+        "display_name": "MotionSense",
+        "config_cls": MotionSenseConfig,
+        "fallback_subjects": 24,
     },
-    "HHAR-Phone": {
-        "path": HHARConfig.PROCESSED_DIR_PHONE / "dataset_all.pt",
-        "class_names": HHARConfig.CLASS_NAMES,
-        "expected_subjects": 9,
-        "static_labels": [3, 4],  # Sitting, Standing
+    "hhar_phone": {
+        "display_name": "HHAR-Phone",
+        "config_cls": HHARConfig,
+        "fallback_subjects": 9,
     },
-    "HHAR-Watch": {
-        "path": HHARConfig.PROCESSED_DIR_WATCH / "dataset_all.pt",
-        "class_names": HHARConfig.CLASS_NAMES,
-        "expected_subjects": 9,
-        "static_labels": [3, 4],  # Sitting, Standing
-    },
-    "HHAR-Combined": {
-        "path": HHARConfig.PROCESSED_DIR_COMBINED / "dataset_all.pt",
-        "class_names": HHARConfig.CLASS_NAMES,
-        "expected_subjects": 9,
-        "static_labels": [3, 4],  # Sitting, Standing
+    "hhar_watch": {
+        "display_name": "HHAR-Watch",
+        "config_cls": HHARConfig,
+        "fallback_subjects": 9,
     },
 }
 
+def _expected_subjects(config_cls, fallback: int) -> int:
+    """
+    Tính số subject kỳ vọng từ config class.
+
+    - Nếu class có TRAIN_SUBJECTS + VAL_SUBJECTS + TEST_SUBJECTS -> hợp lại đếm.
+    - Nếu không (UCI-HAR chỉ có VAL_SUBJECTS) -> dùng fallback.
+    """
+    parts = []
+    for attr in ("TRAIN_SUBJECTS", "VAL_SUBJECTS", "TEST_SUBJECTS"):
+        if hasattr(config_cls, attr):
+            parts.append(getattr(config_cls, attr))
+    if not parts:
+        return fallback
+    return len(set().union(*[set(p) for p in parts]))
+
+def _static_labels(class_names: list) -> list:
+    """Trả về index của 2 lớp tĩnh (Sitting, Standing) trong CLASS_NAMES."""
+    return [
+        class_names.index("Sitting"),
+        class_names.index("Standing"),
+    ]
 
 def check_shape(data, name):
     print(f"\n📐 SHAPE CHECK: {name}")
@@ -196,20 +208,33 @@ def main():
     print("=" * 80)
 
     checked = 0
-    for name, cfg in DATASETS.items():
-        path = Path(cfg["path"])
+    for key, meta in DATASET_META.items():
+        # Path lấy từ registry (ưu tiên "all", fallback "train" nếu không có "all")
+        if key not in DATASETS:
+            print(f"⚠️ Bỏ qua {meta['display_name']}: key '{key}' không có trong registry.")
+            continue
+
+        cfg = DATASETS[key]
+        path = Path(cfg.get("all", cfg.get("train")))
+
         if not path.exists():
+            print(f"⚠️ Bỏ qua {meta['display_name']}: file không tồn tại ({path}).")
             continue
 
         checked += 1
-        print(f"\n{'=' * 80}\n📂 KIỂM TRA DATASET: {name}\n📁 File: {path}\n{'=' * 80}")
+        print(f"\n{'=' * 80}\n📂 KIỂM TRA DATASET: {meta['display_name']}\n📁 File: {path}\n{'=' * 80}")
         data = torch.load(path, map_location="cpu", weights_only=True)
 
-        check_shape(data, name)
-        check_labels(data, name, cfg["class_names"])
-        check_subjects(data, name, cfg["expected_subjects"])
-        check_nan_inf(data, name)
-        check_statistics_and_gravity(data, name, cfg["static_labels"])
+        config_cls = meta["config_cls"]
+        class_names = config_cls.CLASS_NAMES
+        expected_subjects = _expected_subjects(config_cls, meta["fallback_subjects"])
+        static_labels = _static_labels(class_names)
+
+        check_shape(data, meta["display_name"])
+        check_labels(data, meta["display_name"], class_names)
+        check_subjects(data, meta["display_name"], expected_subjects)
+        check_nan_inf(data, meta["display_name"])
+        check_statistics_and_gravity(data, meta["display_name"], static_labels)
 
     if checked == 0:
         print("❌ Không tìm thấy file dữ liệu nào. Hãy chạy script tiền xử lý trước!")
@@ -217,7 +242,6 @@ def main():
         print("\n" + "=" * 80)
         print("🎉 HOÀN THÀNH TẤT CẢ CÁC BƯỚC KIỂM TRA CHẤT LƯỢNG!")
         print("=" * 80)
-
 
 if __name__ == "__main__":
     main()

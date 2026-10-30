@@ -8,16 +8,17 @@ import glob
 import pandas as pd
 import numpy as np
 import torch
+from pathlib import Path
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../.."))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.motionsense_config import MotionSenseConfig
+from config.datasets.motionsense_config import MotionSenseConfig
 
 RAW_DATA_DIR = MotionSenseConfig.RAW_DATA_DIR
-OUTPUT_DIR = MotionSenseConfig.PROCESSED_DIR
+OUTPUT_DIR = MotionSenseConfig.PROCESSED_DATA_DIR
 
 WINDOW_SIZE = MotionSenseConfig.WINDOW_SIZE
 STRIDE = MotionSenseConfig.STRIDE
@@ -29,17 +30,7 @@ TEST_SUBJECTS = MotionSenseConfig.TEST_SUBJECTS
 RAW_COLS_USER_ACC = MotionSenseConfig.RAW_COLS_USER_ACC
 RAW_COLS_GRAVITY = MotionSenseConfig.RAW_COLS_GRAVITY
 RAW_COLS_ROTATION = MotionSenseConfig.RAW_COLS_ROTATION
-
-LABEL_MAP = {
-    'wlk': 0,  # Walking
-    'ups': 1,  # Upstairs
-    'dws': 2,  # Downstairs
-    'sit': 3,  # Sitting
-    'std': 4,  # Standing
-
-    'jog': 5  # Jogging # ⚠️ Chỉ có ở MotionSense (UCI-HAR không có)
-}
-
+LABEL_MAPPING = MotionSenseConfig.LABEL_MAPPING
 
 def process_subject_subset(
         subjects_list,
@@ -58,9 +49,9 @@ def process_subject_subset(
         folder_name = os.path.basename(folder)
         act_code = folder_name.split('_')[0]
 
-        if act_code not in LABEL_MAP: continue
+        if act_code not in LABEL_MAPPING: continue
 
-        label = LABEL_MAP[act_code]
+        label = LABEL_MAPPING[act_code]
 
         for sub_id in subjects_list:
             file_path = os.path.join(folder, f"sub_{sub_id}.csv")
