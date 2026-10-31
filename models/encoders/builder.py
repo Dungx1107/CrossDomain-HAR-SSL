@@ -1,7 +1,7 @@
 """
 FACTORY BUILDER KHỞI TẠO ENCODER/BACKBONE CHO TS-TCC
 """
-
+import torch
 import torch.nn as nn
 from models.encoders.cnn_transformer import CNNTransformerEncoder
 from models.encoders.vit_1d import ViT1DEncoder
@@ -54,7 +54,7 @@ def build_encoder(
             f"❌ Không hỗ trợ backbone_type='{backbone_type}'. "
             f"Lựa chọn hợp lệ: ['standard', 'cnn_transformer', 'vit_1d']"
         )
-import torch
+
 if __name__ =="__main__":
     for b in ["standard", "tstcc", "cnn_transformer", "vit_1d"]:
         enc = build_encoder(b, in_channels=6)

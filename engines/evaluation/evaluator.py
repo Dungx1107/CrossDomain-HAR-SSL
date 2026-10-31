@@ -15,6 +15,12 @@ NHIỆM VỤ CHÍNH:
     3. Trích xuất báo cáo phân loại chi tiết từng lớp hành vi (Precision, Recall, F1-Score).
     4. Tính toán và gọi module trực quan hóa Ma trận nhầm lẫn (Confusion Matrix).
 
+HÀM DÙNG CHUNG (module-level) — nguồn duy nhất cho phần dự đoán + metric:
+    - predict(model, loader, device)        -> (y_true, y_pred)
+    - compute_metrics(y_true, y_pred, scale) -> dict các metric toàn cục
+    Được dùng bởi: ModelEvaluator (dưới đây), engines/transfer/finetune_trainer.py,
+    engines/evaluation/few_shot_report.py.
+
 ĐẦU VÀO / ĐẦU RA:
     - Đầu vào: Mô hình PyTorch đã hoàn tất huấn luyện, Test DataLoader, danh sách tên nhãn.
     - Đầu ra: Dictionary chứa các chỉ số thực nghiệm, in kết quả ra terminal, lưu ảnh biểu đồ ma trận.
@@ -24,17 +30,60 @@ NHIỆM VỤ CHÍNH:
 import os
 import sys
 from pathlib import Path
+from typing import Dict, Tuple
+
 import torch
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
+from sklearn.metrics import (classification_report, confusion_matrix, accuracy_score,
+                             f1_score, precision_score, recall_score)
+from utils.visualization import plot_confusion_matrix
+
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.visualization import plot_confusion_matrix
 
+# =============================================================================
+# HÀM DÙNG CHUNG
+# =============================================================================
+
+def predict(model, dataloader, device) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Chạy model (chế độ eval, không gradient) qua DataLoader.
+    Trả về (y_true, y_pred) dạng np.ndarray.
+    """
+    model.eval()
+    all_preds, all_targets = [], []
+
+    # Tắt hoàn toàn bộ nhớ Gradient để giải phóng RAM/VRAM
+    with torch.no_grad():
+        for x_batch, y_batch in dataloader:
+            logits = model(x_batch.to(device))  # (B, Num_Classes)
+            all_preds.extend(torch.argmax(logits, dim=1).cpu().numpy())
+            all_targets.extend(y_batch.cpu().numpy())
+
+    return np.array(all_targets), np.array(all_preds)
+
+
+def compute_metrics(y_true, y_pred, scale: float = 100.0) -> Dict[str, float]:
+    """
+    Các metric toàn cục, nhân với `scale` (100.0 -> thang %, 1.0 -> thang 0-1).
+    Macro/weighted tính trên các nhãn xuất hiện trong y_true ∪ y_pred.
+    """
+    return {
+        "accuracy": accuracy_score(y_true, y_pred) * scale,
+        "macro_f1": f1_score(y_true, y_pred, average="macro", zero_division=0) * scale,
+        "weighted_f1": f1_score(y_true, y_pred, average="weighted", zero_division=0) * scale,
+        "macro_precision": precision_score(y_true, y_pred, average="macro", zero_division=0) * scale,
+        "macro_recall": recall_score(y_true, y_pred, average="macro", zero_division=0) * scale,
+    }
+
+
+# =============================================================================
+# ENGINE
+# =============================================================================
 
 class ModelEvaluator:
     """
@@ -66,24 +115,7 @@ class ModelEvaluator:
         Trả về:
             tuple: (np.ndarray y_true, np.ndarray y_pred)
         """
-        model.eval()
-        all_preds = []
-        all_targets = []
-
-        # Tắt hoàn toàn bộ nhớ Gradient để giải phóng RAM/VRAM
-        with torch.no_grad():
-            for x_batch, y_batch in dataloader:
-                x_batch = x_batch.to(self.device)
-
-                # Lan truyền tiến nhận Logits: (B, Num_Classes)
-                logits = model(x_batch)
-                preds = torch.argmax(logits, dim=1)
-
-                # Chuyển dữ liệu từ GPU về CPU an toàn trước khi ép kiểu NumPy
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
-
-        return np.array(all_targets), np.array(all_preds)
+        return predict(model, dataloader, self.device)
 
     def evaluate(self,
                  model,
@@ -101,7 +133,8 @@ class ModelEvaluator:
             title_prefix (str): Tiêu đề mô tả kịch bản chạy (ví dụ: 'MotionSense Baseline' hay 'SSL Transfer 5%').
 
         Trả về:
-            dict: Bảng tổng hợp các chỉ số kiểm thử phục vụ vẽ biểu đồ hoặc lập bảng kết quả.
+            dict: Bảng tổng hợp các chỉ số kiểm thử phục vụ vẽ biểu đồ hoặc lập bảng kết quả
+                  (accuracy / macro_f1 / weighted_f1 theo thang 0-1).
         """
         # Thu thập toàn bộ kết quả dự đoán
         y_true, y_pred = self.run_inference(model, test_loader)
@@ -109,9 +142,10 @@ class ModelEvaluator:
         # ---------------------------------------------------------------------
         # 1. TÍNH TOÁN CÁC THƯỚC ĐO THỐNG KÊ TOÀN CỤC
         # ---------------------------------------------------------------------
-        acc = accuracy_score(y_true, y_pred)
-        macro_f1 = f1_score(y_true, y_pred, average="macro")
-        weighted_f1 = f1_score(y_true, y_pred, average="weighted")
+        metrics = compute_metrics(y_true, y_pred, scale=1.0)
+        acc = metrics["accuracy"]
+        macro_f1 = metrics["macro_f1"]
+        weighted_f1 = metrics["weighted_f1"]
 
         print("\n" + "=" * 75)
         print(f"{f'KẾT QUẢ ĐÁNH GIÁ TỔNG QUAN ({title_prefix})':^75}")
@@ -143,7 +177,8 @@ class ModelEvaluator:
         # ---------------------------------------------------------------------
         # 3. MA TRẬN NHẦM LẪN (CONFUSION MATRIX)
         # ---------------------------------------------------------------------
-        cm = confusion_matrix(y_true, y_pred)
+        # labels=eval_labels: ma trận luôn đủ N x N dù tập test thiếu một lớp
+        cm = confusion_matrix(y_true, y_pred, labels=eval_labels)
         print("🔍 MA TRẬN NHẦM LẪN (SỐ LƯỢNG MẪU):")
         print(cm)
 

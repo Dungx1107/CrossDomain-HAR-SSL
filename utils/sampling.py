@@ -80,3 +80,32 @@ def sample_subset_by_ratio(
     )
     train_idx, _ = next(sss.split(x_np, y_np))
     return x_all[train_idx], y_all[train_idx]
+
+
+# =============================================================================
+# FEW-SHOT (K-SHOT CÂN BẰNG) — dùng cho scripts/03_cross_domain/run_few_shot.py
+# Khác với các hàm theo tỷ lệ (ratio) ở trên: lấy đúng k mẫu cho MỖI lớp.
+# =============================================================================
+def sample_k_shot(X, y, k, seed, num_classes=5):
+    """
+    Lấy k mẫu/lớp (cân bằng giữa các lớp) từ tập Train.
+    Args:
+        X (torch.Tensor): Dữ liệu, shape (N, C, T).
+        y (torch.Tensor): Nhãn nguyên, shape (N,).
+        k (int): Số mẫu mỗi lớp.
+        seed (int): Random seed (quyết định mẫu nào được chọn).
+        num_classes (int): Số lớp chung (nhãn 0..num_classes-1).
+    Returns:
+        (X_sub, y_sub) có k * num_classes mẫu.
+    """
+    rng = np.random.default_rng(seed)
+    idx_list = []
+    for c in range(num_classes):
+        c_idx = torch.where(y == c)[0].numpy()
+        if len(c_idx) < k:
+            raise ValueError(f"Không đủ mẫu cho lớp {c}. Yêu cầu {k}, có {len(c_idx)}")
+        rng.shuffle(c_idx)
+        idx_list.extend(c_idx[:k])
+    return X[idx_list], y[idx_list]
+
+
