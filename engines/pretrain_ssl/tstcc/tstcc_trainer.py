@@ -24,7 +24,7 @@ from models.ssl.contrastive.ts_tcc_model import TSTCCModel
 from models.encoders.builder import build_encoder
 from config.methods.tstcc_config import TSTCCConfig
 from utils.hardware import print_gpu_status
-from engines.pretrain_ssl.tstcc_reporting import (
+from engines.pretrain_ssl.tstcc.tstcc_reporting import (
     build_config, save_json, save_training_outputs,
     print_header, log_epoch, print_summary,
 )

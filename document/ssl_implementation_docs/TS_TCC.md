@@ -51,7 +51,7 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 | TSTCCModel | `models/ssl/contrastive/ts_tcc_model.py` | Wrapper gộp encoder + TC + CC |
 | NTXentLoss | `losses/nt_xent.py` | Contextual Contrasting loss |
 | ContrastiveDatasetWrapper | `datasets/contrastive_dataset.py` | Dataset sinh (x_weak, x_strong) |
-| Contrastive Trainer | `../../engines/pretrain_ssl/tstcc_trainer.py` | Training loop SSL |
+| Contrastive Trainer | `../../engines/pretrain_ssl/tstcc/tstcc_trainer.py` | Training loop SSL |
 | Entry point | `../../scripts/02_pretrain_ssl/run_pretrain_tstcc.py` | CLI script khởi chạy |
 
 ---
@@ -63,7 +63,7 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 **File:** `../../scripts/02_pretrain_ssl/run_pretrain_tstcc.py`
 - **Vai trò:** Script CLI chính để khởi chạy pretraining TS-TCC.
 - **Nhận argument:** `--backbone` (default: `vit_1d`), `--epochs` (default: 60), `--batch_size` (default: 64), `--datasets` (default: `["uci_har", "motionsense"]`).
-- **Gọi:** `train_contrastive_encoder()` trong `../../engines/pretrain_ssl/tstcc_trainer.py`.
+- **Gọi:** `train_contrastive_encoder()` trong `../../engines/pretrain_ssl/tstcc/tstcc_trainer.py`.
 
 **Cấu hình dataset được đọc từ:**
 - `config/motionsense_config.py` → `MotionSenseConfig.DATA_ALL_PATH`
@@ -124,7 +124,7 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 
 ### 2.9. Training engine
 
-**File:** `../../engines/pretrain_ssl/tstcc_trainer.py`
+**File:** `../../engines/pretrain_ssl/tstcc/tstcc_trainer.py`
 - **Function:** `train_contrastive_encoder()`
 - Vòng lặp huấn luyện hoàn chỉnh + lưu checkpoint + ghi CSV log.
 

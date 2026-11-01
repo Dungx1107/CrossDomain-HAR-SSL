@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from engines.pretrain_ssl.tstcc_trainer import train_tstcc_encoder
+from engines.pretrain_ssl.tstcc.tstcc_trainer import train_tstcc_encoder
 from config.datasets.registry import DATASETS
 from config.datasets.base_dataset_config import BaseDatasetConfig
 

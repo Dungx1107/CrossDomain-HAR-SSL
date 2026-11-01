@@ -41,7 +41,7 @@ NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
 parser = argparse.ArgumentParser(description="Few-shot Cross-Domain HAR")
 parser.add_argument("--freeze_modes", nargs="+", type=str, default=["full", "partial:1", "none"],
                     help="Các chế độ chạy: 'full', 'none', 'partial' (mặc định 1 block), hoặc 'partial:N' (mở N block)")
-parser.add_argument("--method", type=str, default="tstcc", choices=["tstcc", "swav", "crosshar"])
+parser.add_argument("--method", type=str, default="tstcc", choices=["tstcc", "swav", "crosshar","tstcc_swav"])
 parser.add_argument("--backbone", type=str, default="standard",
                     choices=["standard", "cnn_transformer", "vit_1d"])
 parser.add_argument("--epochs", type=int, default=40)
@@ -110,7 +110,7 @@ def run_few_shot(src, tgt):
                     shuffle=True
                 )
 
-                _, _, model, _ = train_and_eval_finetune(
+                _, _, model, metadata = train_and_eval_finetune(
                     train_loader=tr_loader,
                     # val_loader=val_loader,
                     val_loader=None,
@@ -125,7 +125,7 @@ def run_few_shot(src, tgt):
                     device=DEVICE
                 )
 
-                result = evaluate_model(model, test_loader, DEVICE, COMMON_CLASS_NAMES)
+                result = evaluate_model(model, test_loader, DEVICE, COMMON_CLASS_NAMES, metadata)
                 result["train_samples_used"] = len(y_sub_tr)
                 seed_results[seed] = result
                 print(f"   [Seed {seed:<4}] Mẫu Train: {len(y_sub_tr):<4} | "
@@ -143,3 +143,14 @@ if __name__ == "__main__":
     for p in args.pairs:
         src, tgt = p.split(":")
         run_few_shot(src.strip(), tgt.strip())
+
+
+# uv run python scripts/03_cross_domain/run_few_shot.py \
+#   --pairs "uci_har:hhar_phone" "uci_har:hhar_watch" "motion_sense:hhar_phone" "motion_sense:hhar_watch" "hhar_phone:motion_sense" "hhar_watch:uci_har" \
+#   --method tstcc \
+#   --backbone standard \
+#   --k_shots 10 30 50 100 120 \
+#   --epochs 40 \
+#   --seeds 42 100 2024 7 99 \
+#   --batch_size 16 \
+#   --freeze_modes full partial:2 none

@@ -21,7 +21,12 @@ from sklearn.metrics import classification_report, cohen_kappa_score, confusion_
 from engines.evaluation.evaluator import predict
 
 
-def evaluate_model(model, loader, device: str, class_names: List[str]) -> Dict[str, Any]:
+def evaluate_model(
+        model,
+        loader,
+        device: str,
+        class_names: List[str],
+        metadata: dict = None) -> Dict[str, Any]:
     """Đánh giá mô hình trên loader. Các metric tính theo thang 0-100 (trừ kappa)."""
     y_true, y_pred = predict(model, loader, device)
 
@@ -31,6 +36,12 @@ def evaluate_model(model, loader, device: str, class_names: List[str]) -> Dict[s
         y_true, y_pred, labels=label_ids, target_names=class_names,
         output_dict=True, zero_division=0
     )
+    # Lấy thời gian từ metadata (nếu có truyền vào)
+    train_time_sec = 0.0
+    infer_time_sec = 0.0
+    if metadata and "timing" in metadata:
+        train_time_sec = metadata["timing"].get("total_train_time_sec", 0.0)
+        infer_time_sec = metadata["timing"].get("total_test_inference_sec", 0.0)
 
     return {
         "accuracy": float((y_true == y_pred).mean() * 100),
@@ -40,6 +51,8 @@ def evaluate_model(model, loader, device: str, class_names: List[str]) -> Dict[s
         "kappa": cohen_kappa_score(y_true, y_pred),
         "per_class_f1": {c: round(report[c]["f1-score"] * 100, 2) for c in class_names},
         "confusion_matrix": confusion_matrix(y_true, y_pred, labels=label_ids),
+        "train_time_sec": train_time_sec,
+        "inference_time_sec": infer_time_sec,
     }
 
 
@@ -83,6 +96,9 @@ def save_k_shot_report(
     with open(save_dir / "detailed_all_seeds.json", "w", encoding="utf-8") as f:
         json.dump(detailed, f, indent=4)
 
+    train_times = [seed_results[s]["train_time_sec"] for s in seeds]
+    infer_times = [seed_results[s]["inference_time_sec"] for s in seeds]
+
     # 2. Summary trung bình
     summary = {
         "protocol": display_name, "k_shot_name": k_shot_name, "k_value": k,
@@ -95,6 +111,10 @@ def save_k_shot_report(
         },
         "per_class_f1_mean": {
             c: round(np.mean([seed_results[s]["per_class_f1"][c] for s in seeds]), 2) for c in class_names
+        },
+        "timing": {
+            "train_time_mean_sec": round(np.mean(train_times), 2),
+            "inference_time_mean_sec": round(np.mean(infer_times), 4)
         },
         "seed_quick_lookup": {
             str(s): {"accuracy": round(r["accuracy"], 2), "macro_f1": round(r["macro_f1"], 2)}
