@@ -43,7 +43,7 @@ parser.add_argument("--freeze_modes", nargs="+", type=str, default=["full", "par
                     help="Các chế độ chạy: 'full', 'none', 'partial' (mặc định 1 block), hoặc 'partial:N' (mở N block)")
 parser.add_argument("--method", type=str, default="tstcc", choices=["tstcc", "swav", "crosshar","tstcc_swav"])
 parser.add_argument("--backbone", type=str, default="standard",
-                    choices=["standard", "cnn_transformer", "vit_1d","tstcc"])
+                    choices=["standard", "cnn_transformer", "vit_1d", "tstcc" ])
 parser.add_argument("--epochs", type=int, default=40)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--seeds", nargs="+", type=int, default=[42, 100, 2024, 7, 99])
