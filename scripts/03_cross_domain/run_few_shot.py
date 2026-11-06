@@ -90,7 +90,9 @@ def run_few_shot(src, tgt):
 
     test_loader = DataLoader(TensorDataset(X_ts_full, y_ts_full), batch_size=64, shuffle=False)
 
-    base_save_dir = OUTPUT_ROOT / "outputs_evaluation/cross_k_shot" / args.method / args.backbone / f"{src}_to_{tgt}"
+    # Tạo tag_suffix để tách thư mục output của bs64 và bs128
+    tag_suffix = f"_{args.pretrain_tag}" if args.pretrain_tag else ""
+    base_save_dir = OUTPUT_ROOT / "outputs_evaluation/cross_k_shot" / args.method / f"{args.backbone}{tag_suffix}" / f"{src}_to_{tgt}"
     base_save_dir.mkdir(parents=True, exist_ok=True)
 
     metadata = {
