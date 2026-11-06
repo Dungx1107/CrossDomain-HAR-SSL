@@ -14,6 +14,8 @@ from pathlib import Path
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
+from utils.checkpoint_paths import ssl_checkpoint_path
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -41,9 +43,11 @@ NUM_COMMON_CLASSES = len(COMMON_CLASS_NAMES)
 parser = argparse.ArgumentParser(description="Few-shot Cross-Domain HAR")
 parser.add_argument("--freeze_modes", nargs="+", type=str, default=["full", "partial:1", "none"],
                     help="Các chế độ chạy: 'full', 'none', 'partial' (mặc định 1 block), hoặc 'partial:N' (mở N block)")
-parser.add_argument("--method", type=str, default="tstcc", choices=["tstcc", "swav", "crosshar","tstcc_swav"])
+parser.add_argument("--method", type=str, default="tstcc", choices=["tstcc", "swav", "crosshar", "tstcc_swav"])
 parser.add_argument("--backbone", type=str, default="standard",
-                    choices=["standard", "cnn_transformer", "vit_1d", "tstcc" ])
+                    choices=["standard", "cnn_transformer", "vit_1d", "tstcc"])
+parser.add_argument("--pretrain_tag", type=str, default="",
+                    help="Tag của checkpoint pretrain (vd 'bs64', 'bs128'). Rỗng = không tag.")
 parser.add_argument("--epochs", type=int, default=40)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--seeds", nargs="+", type=int, default=[42, 100, 2024, 7, 99])
@@ -72,15 +76,18 @@ def run_few_shot(src, tgt):
     cfg = DATASETS[tgt]
 
     X_tr_full, y_tr_full = load_data(cfg["train"], NUM_COMMON_CLASSES)
-    X_v_full, y_v_full = load_data(cfg["val"], NUM_COMMON_CLASSES)
     X_ts_full, y_ts_full = load_data(cfg["test"], NUM_COMMON_CLASSES)
 
-    source_ckpt = (OUTPUT_ROOT / "checkpoints/ssl_pretrain" / args.method / src / args.backbone
-                   / f"{args.method}_{args.backbone}_encoder_pretrained_{src}.pt")
+    source_ckpt = ssl_checkpoint_path(
+        OUTPUT_ROOT,
+        method=args.method,
+        dataset=src,
+        backbone=args.backbone,
+        tag=args.pretrain_tag,
+    )
     if not source_ckpt.exists():
         raise FileNotFoundError(f"❌ Thiếu checkpoint pretrain tại: {source_ckpt}")
 
-    # val_loader = DataLoader(TensorDataset(X_v_full, y_v_full), batch_size=64, shuffle=False)
     test_loader = DataLoader(TensorDataset(X_ts_full, y_ts_full), batch_size=64, shuffle=False)
 
     base_save_dir = OUTPUT_ROOT / "outputs_evaluation/cross_k_shot" / args.method / args.backbone / f"{src}_to_{tgt}"
@@ -88,7 +95,8 @@ def run_few_shot(src, tgt):
 
     metadata = {
         "experiment_type": "few_shot_cross_domain", "source_domain": src, "target_domain": tgt,
-        "pretrain_method": args.method, "backbone": args.backbone, "checkpoint": str(source_ckpt),
+        "pretrain_method": args.method, "backbone": args.backbone, "pretrain_tag": args.pretrain_tag,
+        "checkpoint": str(source_ckpt),
         "k_shots": args.k_shots, "seeds": args.seeds, "epochs": args.epochs, "batch_size": args.batch_size,
         "freeze_modes": args.freeze_modes
     }
@@ -112,7 +120,6 @@ def run_few_shot(src, tgt):
 
                 _, _, model, metadata = train_and_eval_finetune(
                     train_loader=tr_loader,
-                    # val_loader=val_loader,
                     val_loader=None,
                     test_loader=test_loader,
                     encoder_checkpoint_path=source_ckpt,
@@ -143,7 +150,6 @@ if __name__ == "__main__":
     for p in args.pairs:
         src, tgt = p.split(":")
         run_few_shot(src.strip(), tgt.strip())
-
 
 # uv run python scripts/03_cross_domain/run_few_shot.py \
 #   --pairs "uci_har:hhar_phone" "uci_har:hhar_watch" "motion_sense:hhar_phone" "motion_sense:hhar_watch" "hhar_phone:motion_sense" "hhar_watch:uci_har" \

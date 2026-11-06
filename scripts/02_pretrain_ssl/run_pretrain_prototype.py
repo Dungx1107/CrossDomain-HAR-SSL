@@ -13,7 +13,6 @@ import json
 import os
 from pathlib import Path
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
@@ -22,15 +21,15 @@ PROJECT_ROOT = CURRENT_DIR.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from config.motionsense_config import MotionSenseConfig
-from config.uci_har_config import UCIHARConfig
-from config.hhar_config import HHARConfig
+from config.datasets.motionsense_config import MotionSenseConfig
+from config.datasets.uci_har_config import UCIHARConfig
+from config.datasets.hhar_config import HHARConfig
 
 from datasets.contrastive_dataset import ContrastiveDatasetWrapper
 from models.encoders.builder import build_encoder
 from models.ssl.prototype.cluster_model import PrototypicalHARModel
 from losses.swav_loss import SwAVPrototypeLoss
-from utils.complexity import measure_model_complexity, print_complexity_report
+from utils.complexity import ComplexityAnalyzer
 
 # Tự động điều hướng lưu Checkpoint về working directory của Kaggle
 IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
@@ -271,12 +270,12 @@ def train_prototype_single_domain(domain_name: str, data_path: Path, in_channels
     print(f"   📊 Tổng số mẫu: {len(dataset):,}")
     # 8. Đo độ phức tạp tính toán và lưu Metadata / Complexity ra JSON
     print(f"⚡ Đang đo lường độ phức tạp tính toán và độ trễ cho {backbone_type.upper()}...")
-    complexity_info = measure_model_complexity(
+    complexity_info = ComplexityAnalyzer.measure_model(
         model=backbone,
         input_size=(1, in_channels, 128),
         device=DEVICE
     )
-    print_complexity_report(complexity_info)
+    ComplexityAnalyzer.print_report(complexity_info)
 
     # Lưu kết quả đo độ phức tạp
     complexity_json_path = save_dir / "complexity.json"
