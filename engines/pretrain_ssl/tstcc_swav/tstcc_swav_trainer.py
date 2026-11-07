@@ -31,7 +31,7 @@ from config.methods.tstcc_config import TSTCCConfig
 from config.methods.tstcc_swav_config import TSTCCSwAVConfig as SwCfg
 from datasets.contrastive_dataset import ContrastiveDatasetWrapper
 from models.encoders.builder import build_encoder
-from models.ssl.hybrid.tstcc_swav_model import TSTCCSwAVModel
+from models.ssl.hybrid.tstcc_swav.tstcc_swav_model import TSTCCSwAVModel
 from utils.hardware import print_gpu_status
 
 

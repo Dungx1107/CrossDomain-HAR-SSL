@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.ssl.masked.modules import TimeDistributed
+from models.ssl.hybrid.crosshar.modules import TimeDistributed
 
 
 class PSMEncoder(nn.Module):

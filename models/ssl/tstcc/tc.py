@@ -13,7 +13,7 @@ Thực hiện:
 
 import torch
 import torch.nn as nn
-from models.ssl.contrastive.attention import Seq_Transformer
+from models.ssl.tstcc.attention import Seq_Transformer
 
 
 class TC(nn.Module):

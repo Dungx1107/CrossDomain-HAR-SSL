@@ -24,7 +24,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.encoders.tstcc_encoder import TSTCCEncoder
-from models.ssl.contrastive.tc import TC
+from models.ssl.tstcc.tc import TC
 from losses.nt_xent import NTXentLoss
 from losses.swav_loss import sinkhorn_knopp
 

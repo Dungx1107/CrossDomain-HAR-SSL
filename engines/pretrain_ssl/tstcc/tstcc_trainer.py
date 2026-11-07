@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 from datasets.contrastive_dataset import ContrastiveDatasetWrapper
-from models.ssl.contrastive.ts_tcc_model import TSTCCModel
+from models.ssl.tstcc.ts_tcc_model import TSTCCModel
 from models.encoders.builder import build_encoder
 from config.methods.tstcc_config import TSTCCConfig
 from utils.hardware import print_gpu_status
@@ -28,6 +28,9 @@ from engines.pretrain_ssl.tstcc.tstcc_reporting import (
     build_config, save_json, save_training_outputs,
     print_header, log_epoch, print_summary,
 )
+from utils.checkpoint_paths import ssl_checkpoint_name, ssl_checkpoint_dir, get_output_root
+
+METHOD_NAME = "tstcc"  # checkpoints/ssl_pretrain/tstcc/<dataset>/<backbone>_<tag>/
 
 
 # =============================================================================
@@ -109,8 +112,7 @@ def _train_one_epoch(
 
 def train_tstcc_encoder(
         data_path: Union[str, Path],
-        save_dir: Union[str, Path],
-        checkpoint_name: str = "best_encoder.pt",
+        dataset_name: str,
         backbone_type: str = "standard",
         model: Optional[nn.Module] = None,
         in_channels: int = 6,
@@ -123,14 +125,14 @@ def train_tstcc_encoder(
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
         measure_complexity: bool = True,
         seq_len: int = 128,
-        num_workers: int = 2
+        num_workers: int = 2,
+        tag: str = "",
 ) -> None:
-    # ---- Đường dẫn ----
-    save_dir = Path(save_dir)
-    target_dir = save_dir / backbone_type
+    # ---- Đường dẫn: checkpoints/ssl_pretrain/tstcc/<dataset>/<backbone>_<tag>/ ----
+    target_dir = ssl_checkpoint_dir(get_output_root(), METHOD_NAME, dataset_name, backbone_type, tag=tag)
     target_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_name = ssl_checkpoint_name(METHOD_NAME, backbone_type, dataset_name)
     checkpoint_path = target_dir / checkpoint_name
-    dataset_name = Path(data_path).parent.name
 
     # ---- 1. Dữ liệu + 2. Model ----
     loader = _build_loader(data_path, batch_size, num_workers, device)
@@ -144,7 +146,7 @@ def train_tstcc_encoder(
             seq_len=seq_len, backbone_type=backbone_type, feature_dim=feature_dim,
             temperature=temperature, batch_size=batch_size, learning_rate=learning_rate,
             weight_decay=weight_decay, epochs=epochs, num_workers=num_workers,
-            save_dir=save_dir, target_dir=target_dir, checkpoint_name=checkpoint_name,
+            target_dir=target_dir, checkpoint_name=checkpoint_name,
             device=device,
         ),
         target_dir / "config.json",

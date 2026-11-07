@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from models.encoders.cnn1d import StandardSensorEncoder1D
-from models.ssl.masked.mask_generator import SegmentMaskGenerator
+from models.ssl.hybrid.crosshar.mask_generator import SegmentMaskGenerator
 
 
 class Conv1DDecoder(nn.Module):

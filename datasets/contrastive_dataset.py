@@ -23,7 +23,7 @@ from typing import Union
 import torch
 from torch.utils.data import Dataset
 
-from models.ssl.contrastive.augmentations import TS_TCC_Augmentation
+from models.ssl.tstcc.augmentations import TS_TCC_Augmentation
 
 
 class ContrastiveDatasetWrapper(Dataset):

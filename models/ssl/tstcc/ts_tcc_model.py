@@ -30,7 +30,7 @@ import torch
 import torch.nn as nn
 
 from models.encoders.tstcc_encoder import TSTCCEncoder
-from models.ssl.contrastive.tc import TC
+from models.ssl.tstcc.tc import TC
 from losses.nt_xent import NTXentLoss
 
 

@@ -51,22 +51,22 @@ Target-domain K-shot sampling
 
 | Thành phần | File thực tế | Vai trò |
 |---|---|---|
-| Model wrapper | `../../models/ssl/hybrid/tstcc_swav_model.py` | `TSTCCSwAVModel`: encoder, TC, projection context và prototype matrix |
+| Model wrapper | `../../models/ssl/hybrid/tstcc_swav/tstcc_swav_model.py` | `TSTCCSwAVModel`: encoder, TC, projection context và prototype matrix |
 | Encoder | `../../models/encoders/tstcc_encoder.py` | 1D-CNN TS-TCC, giữ chiều thời gian, xuất `(B, 128, 18)` |
 | Encoder factory | `../../models/encoders/builder.py` | Tạo `standard`, `cnn_transformer`, `vit_1d` hoặc `tstcc` |
-| TC module | `../../models/ssl/contrastive/tc.py` | `Seq_Transformer`, các head `W_k`, InfoNCE |
-| Transformer attention | `../../models/ssl/contrastive/attention.py` | CLS token và self-attention để tạo context `c_t` |
+| TC module | `../../models/ssl/tstcc/tc.py` | `Seq_Transformer`, các head `W_k`, InfoNCE |
+| Transformer attention | `../../models/ssl/tstcc/attention.py` | CLS token và self-attention để tạo context `c_t` |
 | SwAV loss | `../../losses/swav_loss.py` | `sinkhorn_knopp()` và `SwAVPrototypeLoss` |
 | Config hybrid | `../../config/methods/tstcc_swav_config.py` | `K`, nhiệt độ, số vòng Sinkhorn, trọng số loss, warm-up |
 | Training engine | `../../engines/pretrain_ssl/tstcc_swav/tstcc_swav_trainer.py` | DataLoader, validation shape, optimizer, logging và checkpoint |
 | CLI pretraining | `../../scripts/02_pretrain_ssl/run_pretrain_tstcc_swav.py` | Chọn dataset/backbone và khởi chạy engine |
-| Dataset views | `../../datasets/contrastive_dataset.py`, `models/ssl/contrastive/augmentations.py` | Sinh `(x_weak, x_strong)` từ một sample |
+| Dataset views | `../../datasets/contrastive_dataset.py`, `../../models/ssl/tstcc/augmentations.py` | Sinh `(x_weak, x_strong)` từ một sample |
 | Downstream CLI | `../../scripts/03_cross_domain/run_few_shot.py` | Load encoder checkpoint, K-shot và LP/FT |
 | Downstream trainer | `../../engines/transfer/finetune_trainer.py` | Huấn luyện classifier trên target domain |
 
 > **Tên file cần lưu ý:** yêu cầu ban đầu có thể tham chiếu
 > `models/ssl/contrastive/tstcc_swav_model.py`; implementation hiện tại nằm
-> ở `../../models/ssl/hybrid/tstcc_swav_model.py`. CLI và trainer đang import đường
+> ở `../../models/ssl/hybrid/tstcc_swav/tstcc_swav_model.py`. CLI và trainer đang import đường
 > dẫn `hybrid`, vì vậy không đổi tên nếu chưa cập nhật toàn bộ import.
 
 ## 3. Luồng dữ liệu và biến đổi tensor

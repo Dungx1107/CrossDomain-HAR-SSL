@@ -45,11 +45,11 @@ Linear Probing / Full Fine-tuning       → engines/transfer/finetune_trainer.py
 
 | Thành phần | File | Mô tả |
 |---|---|---|
-| Augmentation | `models/ssl/contrastive/augmentations.py` | Tạo weak/strong view |
+| Augmentation | `../../models/ssl/tstcc/augmentations.py` | Tạo weak/strong view |
 | TSTCCEncoder | `models/encoders/tstcc_encoder.py` | Backbone 1D-CNN (3 block) |
-| TC module | `models/ssl/contrastive/tc.py` | Temporal Contrasting, InfoNCE |
-| Seq_Transformer | `models/ssl/contrastive/attention.py` | Transformer trích xuất c_t |
-| TSTCCModel | `models/ssl/contrastive/ts_tcc_model.py` | Wrapper gộp encoder + TC + CC |
+| TC module | `../../models/ssl/tstcc/tc.py` | Temporal Contrasting, InfoNCE |
+| Seq_Transformer | `../../models/ssl/tstcc/attention.py` | Transformer trích xuất c_t |
+| TSTCCModel | `../../models/ssl/tstcc/ts_tcc_model.py` | Wrapper gộp encoder + TC + CC |
 | NTXentLoss | `losses/nt_xent.py` | Contextual Contrasting loss |
 | ContrastiveDatasetWrapper | `datasets/contrastive_dataset.py` | Dataset sinh (x_weak, x_strong) |
 | TSTCCConfig | `config/methods/tstcc_config.py` | Tập trung hyperparameters |
@@ -276,7 +276,7 @@ self.samples = self.samples.float()
 
 ### 5.1. Overview
 
-**File:** `models/ssl/contrastive/augmentations.py`
+**File:** `../../models/ssl/tstcc/augmentations.py`
 **Class:** `TS_TCC_Augmentation`
 
 Augmentation áp dụng **on-the-fly** trong `__getitem__`, mỗi lần lấy mẫu sinh view ngẫu nhiên.
@@ -358,7 +358,7 @@ Khi dùng backbone khác `tstcc`, TC module vẫn hoạt động với `seq_len`
 
 ### 6.3. TC module — Temporal Contrasting
 
-**File:** `models/ssl/contrastive/tc.py`
+**File:** `../../models/ssl/tstcc/tc.py`
 **Class:** `TC`
 
 ```python
@@ -400,7 +400,7 @@ Output: (nce_loss, projection_head(c_t), t_samples)
 
 ### 6.4. Seq_Transformer
 
-**File:** `models/ssl/contrastive/attention.py`
+**File:** `../../models/ssl/tstcc/attention.py`
 **Class:** `Seq_Transformer`
 
 ```text
@@ -431,7 +431,7 @@ Output: loss_cc: scalar
 
 ### 6.6. TSTCCModel — Wrapper tổng hợp
 
-**File:** `models/ssl/contrastive/ts_tcc_model.py`
+**File:** `../../models/ssl/tstcc/ts_tcc_model.py`
 **Class:** `TSTCCModel`
 
 ```python
@@ -913,9 +913,9 @@ cat checkpoints/ssl_pretrain/tstcc/uci_har/standard/complexity.json
 - Repository gốc: `emadeldeen24/TS-TCC`.
 
 **Implementation trong repository:**
-- `models/ssl/contrastive/ts_tcc_model.py` — `TSTCCModel` wrapper
-- `models/ssl/contrastive/tc.py` — `TC` class (Temporal Contrasting)
-- `models/ssl/contrastive/attention.py` — `Seq_Transformer`
+- `../../models/ssl/tstcc/ts_tcc_model.py` — `TSTCCModel` wrapper
+- `../../models/ssl/tstcc/tc.py` — `TC` class (Temporal Contrasting)
+- `../../models/ssl/tstcc/attention.py` — `Seq_Transformer`
 - `engines/pretrain_ssl/tstcc/tstcc_trainer.py` — `train_tstcc_encoder()`
 - `config/methods/tstcc_config.py` — `TSTCCConfig` (tất cả hyperparameters)
 - `utils/checkpoint_paths.py` — `ssl_checkpoint_dir()`, `ssl_checkpoint_name()`

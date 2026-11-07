@@ -670,7 +670,7 @@ for group in optimizer.param_groups:
 
 ## Phần 9. Augmentation — dùng chung với TS-TCC
 
-**File:** `models/ssl/contrastive/augmentations.py`
+**File:** `../../models/ssl/tstcc/augmentations.py`
 **Class:** `TS_TCC_Augmentation`
 
 Cùng augmentation strategy với TS-TCC:

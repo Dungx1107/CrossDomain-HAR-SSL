@@ -11,7 +11,7 @@ ENGINE: HUẤN LUYỆN PRETRAIN PHÂN CẤP TUẦN TỰ (CROSSHAR SEQUENTIAL TRA
 import sys
 import csv
 from pathlib import Path
-from typing import Optional, Union, Dict, Any
+from typing import Union, Dict, Any
 
 import torch
 import torch.nn as nn
@@ -25,7 +25,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from models.encoders.builder import build_encoder
-from models.ssl.masked.crosshar_model import CrossHARPretrainModel
+from models.ssl.hybrid.crosshar.crosshar_model import CrossHARPretrainModel
 
 
 def train_crosshar_sequential(

@@ -32,7 +32,7 @@ def save_json(obj: dict, path: Union[str, Path]) -> None:
 def build_config(
         data_path, total_samples, in_channels, seq_len, backbone_type,
         feature_dim, temperature, batch_size, learning_rate, weight_decay,
-        epochs, num_workers, save_dir, target_dir, checkpoint_name, device,
+        epochs, num_workers, target_dir, checkpoint_name, device,
 ) -> dict:
     """Tạo dict config đầy đủ để tái lập + audit."""
     return {
@@ -56,7 +56,6 @@ def build_config(
         "weight_decay": weight_decay,
         "epochs": epochs,
         "num_workers": num_workers,
-        "save_dir": str(save_dir),
         "target_dir": str(target_dir),
         "checkpoint_name": checkpoint_name,
         "device": device,

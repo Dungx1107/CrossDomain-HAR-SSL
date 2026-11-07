@@ -14,11 +14,11 @@ from pathlib import Path
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-from utils.checkpoint_paths import ssl_checkpoint_path
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.checkpoint_paths import ssl_checkpoint_path
 
 IS_KAGGLE = "KAGGLE_KERNEL_RUN_TYPE" in os.environ
 OUTPUT_ROOT = Path("/kaggle/working") if IS_KAGGLE else PROJECT_ROOT

@@ -44,7 +44,7 @@ probe bằng dữ liệu có nhãn của target trong
 - **Lý thuyết tham chiếu:** CrossHAR được mô tả trong repository như một phương
   pháp pretraining phân cấp dựa trên khôi phục tín hiệu cảm biến và regularization
   tương phản. Các khái niệm này được phản ánh trong docstring của
-  `datasets/crosshar_dataset.py` và `models/ssl/masked/crosshar_model.py`.
+  `datasets/crosshar_dataset.py` và `../../models/ssl/hybrid/crosshar/crosshar_model.py`.
 - **Implementation đã xác minh:** Stage A chỉ tối ưu MSM; Stage B tối ưu
   `6 * loss_m + 1 * loss_r`. Encoder được lưu riêng dưới dạng `state_dict`.
 - **Chưa xác minh:** chưa có bằng chứng trong code này cho thấy mọi chi tiết là
@@ -306,7 +306,7 @@ x_raw (B,6,128)
 `TransformerSensorDecoder` dùng positional encoding `feature_dim`, Transformer
 Encoder 2 layers (đóng vai trò decoder theo implementation), rồi
 `Linear(128, out_channels=6)`. Output được permute về `(B,6,Lf)`
-(`models/ssl/masked/crosshar_model.py`, dòng 68–99).
+(`../../models/ssl/hybrid/crosshar/crosshar_model.py`, dòng 68–99).
 
 ### 6.3. Context, projection và classifier
 
@@ -360,7 +360,7 @@ không được tính và không nhận gradient.
 `SegmentMaskGenerator(mask_ratio=0.15, max_segment_len=16,
 min_segment_len=4)` đặt `int(L * 0.15)` vị trí mask trên mỗi sample. Nó cố
 chọn các đoạn không giao nhau; sau tối đa 200 lần thử, phần thiếu được lấp bằng
-vị trí ngẫu nhiên (`models/ssl/masked/mask_generator.py`, dòng 30–71).
+vị trí ngẫu nhiên (`../../models/ssl/hybrid/crosshar/mask_generator.py`, dòng 30–71).
 Mask được broadcast cho tất cả 6 channel.
 
 Với mask nhị phân $m_{b,c,t}$ và `x_recon`, loss code là:
@@ -824,10 +824,10 @@ và giữ giá trị mặc định của trainer.
 Các nguồn nội bộ dùng để lập tài liệu:
 
 - `README.md`: mô tả mục tiêu Cross-Domain HAR, các phương pháp và pipeline tổng thể.
-- `scripts/02_pretrain_ssl/run_crosshar_pretrain.py`: entry point CrossHAR.
+- `../../scripts/02_pretrain_ssl/run_pretrain_crosshar.py`: entry point CrossHAR.
 - `engines/pretrain_ssl/crosshar_sequential_trainer.py`: training schedule,
   optimizer, validation và checkpoint.
-- `models/ssl/masked/crosshar_model.py`: kiến trúc và loss.
+- `../../models/ssl/hybrid/crosshar/crosshar_model.py`: kiến trúc và loss.
 - `datasets/crosshar_dataset.py`: physical augmentation, normalization và views.
 - `scripts/03_cross_domain/run_few_shot.py`,
   `scripts/03_cross_domain/run_cross_domain.py`: transfer evaluation.
