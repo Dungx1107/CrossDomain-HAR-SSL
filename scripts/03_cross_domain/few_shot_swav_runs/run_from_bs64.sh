@@ -7,7 +7,7 @@ run_few_shot \
     "from_bs64" \
     "swav" \
     "standard" \
-    "bs64" \
+    "bs64_ep60" \
     40 \
     16 \
     "uci_har:motion_sense" \

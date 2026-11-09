@@ -104,50 +104,110 @@ giá trị thực tế.
 
 ### 4.1. Temporal Contrasting
 
-Với mỗi bước tương lai `k`, đặt `y_k^i` là target của sample `i` và
-`\hat y_k^j = W_k(c_t^j)`. Logits trong batch là:
+Với mỗi bước tương lai $k$, đặt $y_k^i$ là target của sample $i$ và $\hat{y}_k^j = W_k(c_t^j)$ là vector dự đoán tương lai từ context embedding của sample $j$.
 
-```math
-s_{ij}^{(k)} = y_k^i \cdot \hat y_k^j
-```
+Logits trong batch được tính bằng tích vô hướng:
 
-Đường chéo là cặp dương và các phần tử còn lại là negative:
+$$
+s_{ij}^{(k)}
+=
+y_k^i \cdot \hat{y}_k^j
+$$
 
-```math
-\mathcal{L}_{TC}^{(1)} =
--\frac{1}{BK}\sum_{k=1}^{K}\sum_{i=1}^{B}
-\log\frac{\exp(s_{ii}^{(k)})}{\sum_{j=1}^{B}\exp(s_{ij}^{(k)})}.
-```
+Đường chéo là cặp positive pair và các phần tử còn lại là negative pairs.
 
-Model chạy hai chiều và dùng
-`\mathcal{L}_{TC} = \mathcal{L}_{TC}^{w\to s} +
-\mathcal{L}_{TC}^{s\to w}`.
+Loss cho một chiều:
 
-### 4.2. SwAV swapped prediction
+$$
+\mathcal{L}_{TC}^{(1)}
+=
+-\frac{1}{B K_{\text{TC}}}
+\sum_{k=1}^{K_{\text{TC}}}
+\sum_{i=1}^{B}
+\log
+\frac{
+\exp\left(s_{ii}^{(k)}\right)
+}{
+\sum_{j=1}^{B}
+\exp\left(s_{ij}^{(k)}\right)
+}
+$$
 
-Sau L2 normalization:
+Model chạy hai chiều weak-to-strong và strong-to-weak:
 
-```math
-a_w = e_w C^\top,\qquad a_s = e_s C^\top,
-```
+L_TC = L_TC(weak → strong) + L_TC(strong → weak)
 
-với `a_w, a_s ∈ R^(B×K)`. Sinkhorn-Knopp nhận cosine thô chia cho
-`epsilon=0.05` và trả `q_w`, `q_s`. Prediction dùng `tau=0.1`:
+### 4.2. SwAV Swapped Prediction
 
-```math
-p_w = softmax(a_w/\tau),\qquad p_s = softmax(a_s/\tau)
-```
+Sau L2 normalization, similarity scores giữa context embedding và prototype được tính:
 
-Loss swapped trong code là:
+$$
+a_w = e_w C^\top
+$$
 
-```math
-\mathcal{L}_{SwAV} =
--\frac{1}{2B}\sum_i
-\left(q_s^i\cdot\log p_w^i + q_w^i\cdot\log p_s^i\right).
-```
+$$
+a_s = e_s C^\top
+$$
 
-`q` được tính trong `torch.no_grad()`, nên Sinkhorn chỉ tạo target; gradient
-đi qua prediction và prototype similarity.
+Trong đó:
+
+$$
+a_w, a_s \in \mathbb{R}^{B \times K_{\text{proto}}}
+$$
+
+Sinkhorn-Knopp nhận cosine scores chia cho $\epsilon$ và trả về assignment:
+
+$$
+q_w, q_s \in \mathbb{R}^{B \times K_{\text{proto}}}
+$$
+
+Prediction sử dụng temperature $\tau$:
+
+$$
+p_w =
+\operatorname{softmax}
+\left(
+\frac{a_w}{\tau}
+\right)
+$$
+
+$$
+p_s =
+\operatorname{softmax}
+\left(
+\frac{a_s}{\tau}
+\right)
+$$
+
+### 4.2. SwAV Swapped Prediction
+
+Loss swapped prediction trong code được tính như sau:
+
+<div align="center">
+
+<strong>
+L<sub>SwAV</sub> = −
+<span style="display:inline-block; vertical-align:middle; text-align:center">
+  <span style="display:block; border-bottom:1px solid; padding:0 4px">1</span>
+  <span style="display:block; padding:0 4px">2B</span>
+</span>
+∑<sub>i=1</sub><sup>B</sup>
+[
+q<sub>s</sub><sup>i</sup> · log p<sub>w</sub><sup>i</sup>
++
+q<sub>w</sub><sup>i</sup> · log p<sub>s</sub><sup>i</sup>
+]
+</strong>
+
+</div>
+
+Trong đó:
+
+- B: batch size.
+- q<sub>s</sub><sup>i</sup>: Sinkhorn assignment của strong view tại sample i.
+- q<sub>w</sub><sup>i</sup>: Sinkhorn assignment của weak view tại sample i.
+- p<sub>w</sub><sup>i</sup>: prediction probability của weak view.
+- p<sub>s</sub><sup>i</sup>: prediction probability của strong view.
 
 ### 4.3. Tổng loss
 

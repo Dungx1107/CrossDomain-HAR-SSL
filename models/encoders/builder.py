@@ -7,6 +7,7 @@ from models.encoders.cnn_transformer import CNNTransformerEncoder
 from models.encoders.vit_1d import ViT1DEncoder
 from models.encoders.cnn1d import StandardSensorEncoder1D
 from models.encoders.tstcc_encoder import TSTCCEncoder
+from models.encoders.cnn_lstm import CNNLSTMEncoder
 
 
 def build_encoder(
@@ -14,7 +15,7 @@ def build_encoder(
         in_channels: int = 6) -> nn.Module:
     """
     Args:
-        backbone_type: 'standard' | 'vit_1d' | 'cnn_transformer'
+        backbone_type: 'standard' | 'tstcc' | 'vit_1d' | 'cnn_transformer' | 'cnn_lstm'
         in_channels: Số kênh cảm biến (mặc định là 6)
     """
     if backbone_type == "standard":
@@ -48,15 +49,23 @@ def build_encoder(
             feature_dim=128,
             dropout=0.35
         )
+    elif backbone_type == "cnn_lstm":
+        # Standard 1D-CNN + 1 lớp LSTM một chiều (an toàn cho TC của TS-TCC)
+        return CNNLSTMEncoder(
+            in_channels=in_channels,
+            feature_dim=128,
+            lstm_layers=1,
+            bidirectional=False
+        )
 
     else:
         raise ValueError(
             f"❌ Không hỗ trợ backbone_type='{backbone_type}'. "
-            f"Lựa chọn hợp lệ: ['standard', 'cnn_transformer', 'vit_1d']"
+            f"Lựa chọn hợp lệ: ['standard', 'tstcc', 'cnn_transformer', 'vit_1d', 'cnn_lstm']"
         )
 
 if __name__ =="__main__":
-    for b in ["standard", "tstcc", "cnn_transformer", "vit_1d"]:
+    for b in ["standard", "tstcc", "cnn_transformer", "vit_1d", "cnn_lstm"]:
         enc = build_encoder(b, in_channels=6)
         with torch.no_grad():
             out = enc(torch.randn(2, 6, 128))

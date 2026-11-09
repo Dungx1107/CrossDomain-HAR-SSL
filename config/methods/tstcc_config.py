@@ -1,6 +1,6 @@
 class TSTCCConfig:
     # 1. Temporal Contrasting
-    TIMESTEPS = 6  # Số bước thời gian tương lai cần dự đoán.
+    TIMESTEPS = 3  # Số bước thời gian tương lai cần dự đoán. vd: 3 ; 6
     TC_HIDDEN_DIM = 64  # Số chiều hidden state của mạng Temporal Contrasting.
     TC_DEPTH = 4  # Số lớp Transformer Encoder trong mạng Temporal Contrasting.
     TC_HEADS = 4  # Số attention heads trong mỗi lớp Transformer.

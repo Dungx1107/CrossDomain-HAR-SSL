@@ -20,7 +20,7 @@ def parse_args():
         "--backbone",
         type=str,
         default="standard",
-        choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
+        choices=["tstcc", "standard", "cnn_transformer", "vit_1d", "cnn_lstm"],
         help="Loại kiến trúc backbone (mặc định: standard)",
     )
     parser.add_argument("--epochs", type=int, default=SwAVConfig.EPOCHS, help="Number of training epochs")

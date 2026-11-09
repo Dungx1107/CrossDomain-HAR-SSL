@@ -17,8 +17,6 @@ from engines.pretrain_ssl.tstcc.tstcc_trainer import train_tstcc_encoder
 from config.datasets.registry import DATASETS
 from config.datasets.base_dataset_config import BaseDatasetConfig
 
-
-
 # ================== ARGUMENT PARSER ==================
 parser = argparse.ArgumentParser(
     description="Pretrain TS-TCC SSL trên HAR DATASETS"
@@ -27,7 +25,7 @@ parser.add_argument(
     "--backbone",
     type=str,
     default="standard",
-    choices=["tstcc", "standard", "cnn_transformer", "vit_1d"],
+    choices=["tstcc", "standard", "cnn_transformer", "vit_1d", "cnn_lstm"],
     help="Loại kiến trúc backbone (mặc định: vit_1d)",
 )
 parser.add_argument(

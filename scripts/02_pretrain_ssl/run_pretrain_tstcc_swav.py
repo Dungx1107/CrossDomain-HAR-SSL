@@ -38,7 +38,7 @@ OUTPUT_ROOT = Path("/kaggle/working") if IS_KAGGLE else PROJECT_ROOT
 # ================== ARGUMENT PARSER ==================
 parser = argparse.ArgumentParser(description="Pretrain hybrid TS-TCC x SwAV trên HAR datasets")
 parser.add_argument("--backbone", type=str, default="standard",
-                    choices=["tstcc", "standard", "cnn_transformer", "vit_1d"])
+                    choices=["tstcc", "standard", "cnn_transformer", "vit_1d","cnn_lstm"])
 parser.add_argument("--epochs", type=int, default=60)
 parser.add_argument("--batch_size", type=int, default=64)
 parser.add_argument("--lr", type=float, default=3e-4)
