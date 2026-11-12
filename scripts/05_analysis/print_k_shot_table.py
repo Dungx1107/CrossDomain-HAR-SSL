@@ -8,10 +8,10 @@ import pandas as pd
 # ============================================================
 # ⚙️ CẤU HÌNH — CHỈNH Ở ĐÂY
 # ============================================================
-CONFIG_LIST = [
-    "tstcc/standard_ts3", "tstcc/standard_bs64"
-]
-PROTOCOL = "full_finetuning"
+# CONFIG_LIST = ["tstcc/standard_ts3", "tstcc/standard_bs64"]
+CONFIG_LIST = ["tstcc/standard_ts3", "tstcc/cnn_lstm"]
+# PROTOCOL = "full_finetuning"
+PROTOCOL = "linear_probing"
 
 CSV_PATH = "../../outputs_evaluation/aggregated_k_shot_detailed.csv"
 DECIMALS = 2

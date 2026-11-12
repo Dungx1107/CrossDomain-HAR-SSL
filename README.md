@@ -1,90 +1,85 @@
-# Cross-Domain HAR: Self-Supervised Learning and Few-Shot Transfer
+# CrossDomain-HAR-SSL
 
-Nghiên cứu và triển khai các phương pháp **học biểu diễn tự giám sát
-(Self-Supervised Learning - SSL)** cho bài toán **nhận dạng hoạt động con
-người liên miền (Cross-Domain Human Activity Recognition - Cross-Domain HAR)**.
-Mục tiêu của dự án là học đặc trưng từ tín hiệu quán tính không hoặc ít nhãn,
-sau đó chuyển mô hình sang một miền cảm biến khác với số lượng mẫu gán nhãn
-hạn chế.
+Framework thực nghiệm cho **Self-Supervised Learning (SSL)** và **few-shot
+cross-domain Human Activity Recognition (HAR)** trên dữ liệu cảm biến quán
+tính. Repository bao gồm tiền xử lý dữ liệu, pre-training SSL, chuyển giao
+sang miền đích, đánh giá linear probing/full fine-tuning và các công cụ tổng
+hợp kết quả.
 
-> **Trạng thái:** mã nguồn thực nghiệm, pipeline tiền xử lý, pre-training,
-> transfer learning, đánh giá K-shot/fraction và các báo cáo kết quả đã được
-> tổ chức trong cùng repository. Dữ liệu thô không được đóng gói trong
-> repository; cần chuẩn bị riêng theo hướng dẫn bên dưới.
-
-<p align="center">
-  <img src="plots/k_shot_scaling_curves.png" alt="Đường cong hiệu năng theo số shot" width="78%">
-</p>
+> **Trạng thái hiện tại:** backbone chính của dự án là `standard`, tức
+> **1D-CNN gồm 4 convolution block**. Đây cũng là backbone được sử dụng trong
+> các thí nghiệm TS-TCC/TSTCC chính (`--backbone standard`). Các backbone khác
+> chỉ dùng cho ablation, thử nghiệm hoặc tương thích checkpoint.
 
 ## Mục lục
 
-- [1. Tổng quan](#1-tổng-quan)
-- [2. Bài toán và thiết kế thực nghiệm](#2-bài-toán-và-thiết-kế-thực-nghiệm)
-- [3. Dữ liệu](#3-dữ-liệu)
-- [4. Phương pháp](#4-phương-pháp)
-- [5. Cấu trúc repository](#5-cấu-trúc-repository)
-- [6. Cài đặt](#6-cài-đặt)
-- [7. Chuẩn bị dữ liệu](#7-chuẩn-bị-dữ-liệu)
-- [8. Chạy pipeline](#8-chạy-pipeline)
-- [9. Đánh giá và sinh báo cáo](#9-đánh-giá-và-sinh-báo-cáo)
-- [10. Kết quả chính](#10-kết-quả-chính)
-- [11. Trực quan hóa](#11-trực-quan-hóa)
-- [12. Tái lập và kiểm soát chất lượng](#12-tái-lập-và-kiểm-soát-chất-lượng)
-- [13. Hạn chế và hướng phát triển](#13-hạn-chế-và-hướng-phát-triển)
-- [14. Tài liệu tham khảo trong repository](#14-tài-liệu-tham-khảo-trong-repository)
+- [1. Mục tiêu và pipeline](#1-mục-tiêu-và-pipeline)
+- [2. Dữ liệu và bài toán](#2-dữ-liệu-và-bài-toán)
+- [3. Backbone và các phương pháp SSL](#3-backbone-và-các-phương-pháp-ssl)
+- [4. Cấu trúc repository](#4-cấu-trúc-repository)
+- [5. Cài đặt](#5-cài-đặt)
+- [6. Chuẩn bị dữ liệu](#6-chuẩn-bị-dữ-liệu)
+- [7. Pre-training SSL](#7-pre-training-ssl)
+- [8. Few-shot cross-domain transfer](#8-few-shot-cross-domain-transfer)
+- [9. Đánh giá, aggregate và báo cáo](#9-đánh-giá-aggregate-và-báo-cáo)
+- [10. Checkpoint và output](#10-checkpoint-và-output)
+- [11. Tái lập thí nghiệm](#11-tái-lập-thí-nghiệm)
+- [12. Tài liệu tham khảo trong repository](#12-tài-liệu-tham-khảo-trong-repository)
 
-## 1. Tổng quan
+## 1. Mục tiêu và pipeline
 
-Trong Cross-Domain HAR, mô hình được pre-train trên một **source domain**
-nhưng được đánh giá trên **target domain** có phân phối khác. Sự khác biệt có
-thể đến từ:
-
-- vị trí cảm biến (túi quần, hông, điện thoại hoặc cổ tay);
-- thiết bị, người dùng và cách cầm/đeo;
-- tần số lấy mẫu, độ dài chuỗi và tiền xử lý;
-- số lượng mẫu có nhãn ở miền đích.
-
-Pipeline của dự án gồm bốn giai đoạn:
+Mục tiêu là học biểu diễn từ dữ liệu chưa gán nhãn ở **source domain**, sau đó
+chuyển biểu diễn sang **target domain** với ít mẫu nhãn. Pipeline chính:
 
 ```text
-Dữ liệu thô
+Raw dataset
     │
     ▼
-Tiền xử lý + chuẩn hóa nhãn + cửa sổ trượt
+Preprocess: chuẩn hóa nhãn + resample/lọc + cửa sổ trượt
     │
     ▼
-SSL pre-training trên source domain
+SSL pre-training trên dataset_all.pt của source
     │
     ▼
-Linear probing hoặc full fine-tuning trên target domain
+Nạp encoder vào HARClassifier
+    │
+    ├── Linear probing: đóng băng toàn bộ encoder
+    ├── Partial fine-tuning: mở một số block cuối
+    └── Full fine-tuning: mở toàn bộ encoder
     │
     ▼
-Macro F1 / accuracy / confusion matrix / báo cáo
+Macro F1, accuracy, confusion matrix và báo cáo theo seed
 ```
 
-Các câu hỏi thực nghiệm chính:
+Các câu hỏi được thiết kế để trả lời:
 
-1. Phương pháp SSL nào tạo ra biểu diễn chuyển giao tốt hơn?
-2. Backbone tích chập cục bộ và backbone CNN-Transformer phản ứng thế nào với
-   domain shift?
-3. Bao nhiêu mẫu nhãn ở miền đích là đủ trong chế độ few-shot?
-4. Target `hhar_watch` có tạo ra nút thắt vật lý khác với các domain
-   pocket-level hay không?
-5. Linear probing có thể dùng như phép kiểm tra nhanh chất lượng biểu diễn
-   trước khi fine-tuning toàn bộ mạng hay không?
+1. Phương pháp SSL nào chuyển giao tốt hơn giữa các sensor/domain?
+2. Biểu diễn học được cần bao nhiêu mẫu nhãn ở target?
+3. Linear probing có phản ánh chất lượng biểu diễn trước khi fine-tuning hay
+   không?
+4. Domain `hhar_watch` khác pocket/phone về mặt động học đến mức nào?
+5. Chi phí mô hình thay đổi ra sao giữa các backbone?
 
-## 2. Bài toán và thiết kế thực nghiệm
+## 2. Dữ liệu và bài toán
 
-### 2.1. Đầu vào và đầu ra
+### 2.1. Input và cửa sổ thời gian
 
-Mỗi mẫu đầu vào là tensor có dạng `(6, 128)`:
+- Input chuẩn: `(batch, 6, 128)`.
+- 6 kênh: 3 trục accelerometer và 3 trục gyroscope/rotation rate.
+- Window length: 128 timestep.
+- Stride: 64 timestep, tương đương overlap 50%.
+- Tần số mục tiêu: 50 Hz, mỗi cửa sổ dài khoảng 2,56 giây.
 
-- 6 kênh: 3 trục gia tốc và 3 trục gyroscope;
-- 128 bước thời gian;
-- tần số mục tiêu 50 Hz, tương đương khoảng 2,56 giây;
-- stride 64, tức hai cửa sổ liên tiếp chồng lấp 50%.
+### 2.2. Dataset được đăng ký trong code
 
-Trong cross-domain benchmark, năm lớp chung được sử dụng là:
+| Tên CLI | Dataset/domain | Đặc điểm |
+|---|---|---|
+| `uci_har` | UCI-HAR | 6 lớp gốc, sensor ở eo; downstream cross-domain dùng 5 lớp |
+| `motion_sense` | MotionSense | 6 lớp gốc, iPhone ở eo; bỏ `Jogging` khi benchmark chung |
+| `hhar_phone` | HHAR phone | điện thoại, dữ liệu timestamp không đều được resample/lọc |
+| `hhar_watch` | HHAR watch | đồng hồ đeo cổ tay, được phân tích như bottleneck vật lý riêng |
+
+Năm lớp chung trong cross-domain benchmark:
 
 | ID | Lớp |
 |---:|---|
@@ -94,146 +89,118 @@ Trong cross-domain benchmark, năm lớp chung được sử dụng là:
 | 3 | Sitting |
 | 4 | Standing |
 
-UCI-HAR có thêm lớp `Laying` và MotionSense có thêm `Jogging`; hai lớp riêng
-này không được đưa vào benchmark năm lớp chung.
+`Laying` của UCI-HAR và `Jogging` của MotionSense vẫn được giữ trong cấu hình
+dataset, nhưng bị lọc khỏi bài toán năm lớp để nhãn giữa các domain tương thích.
 
-### 2.2. Các trục thực nghiệm
+### 2.3. Subject split và xử lý tín hiệu
 
-| Trục | Giá trị |
-|---|---|
-| Phương pháp | `prototype`, `contrastive`, `crosshar` |
-| Backbone | `standard`, `cnn_transformer` (một số script còn hỗ trợ `vit_1d`, `tstcc`) |
-| Protocol | `linear_probing`, `full_finetuning` |
-| K-shot | tùy cấu hình, ví dụ 10, 20, 50, 100 shot |
-| Seed mặc định | 42, 100, 2024, 7, 99 |
-| Metric chính | macro F1 (%) |
+- **MotionSense:** train subjects 1--14, validation 15--18, test 19--24.
+- **UCI-HAR:** dùng split train/test gốc và tách subjects 27--30 từ train làm
+  validation.
+- **HHAR:** 9 subjects được tách train/validation/test theo cấu hình
+  `HHARConfig`: `[a,b,d,e,h]` / `[f,g]` / `[c,i]`.
+- **HHAR preprocessing:** resample về 50 Hz, cắt đoạn khi gap lớn hơn 1 giây,
+  low-pass Butterworth cutoff 10 Hz, order 4.
 
-`linear_probing` đóng băng encoder và chỉ huấn luyện classifier head. Đây là
-phép đo trực tiếp tính chuyển giao của biểu diễn. `full_finetuning` cập nhật
-toàn bộ encoder và head bằng dữ liệu đích.
+Mỗi file `.pt` lưu sample, label và thông tin subject để kiểm tra data leakage.
 
-### 2.3. Cách đọc kết quả
+## 3. Backbone và các phương pháp SSL
 
-- Các giá trị báo cáo theo dạng `mean ± std` giữa các seed khi summary có
-  thông tin độ lệch chuẩn.
-- `N/A` nghĩa là bản ghi không tồn tại; không được diễn giải thành 0.
-- So sánh nhiều phương pháp chỉ hợp lệ trên giao các source-target pair có
-  cùng shot và protocol.
-- Các target chứa `hhar_watch` được phân tích riêng. Đây là khác biệt động học
-  giữa cảm biến cổ tay và cảm biến pocket/hip, không chỉ là một thiếu hụt của
-  thuật toán.
+### 3.1. Backbone chính: `standard` 1D-CNN 4 block
 
-## 3. Dữ liệu
+`models/encoders/cnn1d.py` định nghĩa backbone dùng cho pipeline chính và
+được chọn mặc định bởi `build_encoder()` cũng như transfer model.
 
-### 3.1. Các dataset được hỗ trợ
+| Block | Input channels | Output channels | Kernel | Pool | Output shape với input `(B,6,128)` |
+|---:|---:|---:|---:|---:|---|
+| 1 | 6 | 32 | 7 | 2 | `(B,32,64)` |
+| 2 | 32 | 64 | 5 | 2 | `(B,64,32)` |
+| 3 | 64 | 96 | 5 | 2 | `(B,96,16)` |
+| 4 | 96 | 128 | 3 | 2 | `(B,128,8)` |
 
-| Tên trong code | Mô tả | Cảm biến/đặc điểm |
+Mỗi block gồm `Conv1d -> BatchNorm1d -> ReLU -> MaxPool1d`. Encoder trả về
+feature map `(B,128,8)`; classifier/projection head xử lý feature này theo
+kiến trúc SSL hoặc downstream.
+
+**Lưu ý quan trọng:** TS-TCC/TSTCC không thay backbone chính bằng encoder
+khác. Khi chạy TSTCC với `--backbone standard`, temporal contrasting và
+contextual contrasting đều được tối ưu trên encoder **standard 4 block**.
+
+### 3.2. Backbone tùy chọn
+
+`models/encoders/builder.py` hiện hỗ trợ:
+
+- `standard`: backbone chính, 4 block 1D-CNN.
+- `cnn_transformer`: CNN kết hợp Transformer.
+- `vit_1d`: patch embedding và Transformer cho chuỗi 1D.
+- `cnn_lstm`: 1D-CNN kết hợp một LSTM một chiều.
+- `tstcc`: encoder 1D-CNN theo implementation TS-TCC gốc, 3 block.
+
+`tstcc` là lựa chọn kiến trúc tùy chọn/legacy; không phải backbone chuẩn của
+các thí nghiệm chính. Không được trộn checkpoint giữa các backbone.
+
+### 3.3. Các phương pháp SSL
+
+| CLI `--method` | Thành phần chính | Checkpoint method |
 |---|---|---|
-| `uci_har` | UCI Human Activity Recognition | tín hiệu quán tính 6 kênh, window 128 |
-| `motionsense` | MotionSense | gia tốc tổng hợp + rotation rate, 6 kênh |
-| `hhar_phone` | Heterogeneity Human Activity Recognition - phone | resample và lọc từ dữ liệu HHAR |
-| `hhar_watch` | HHAR - watch | target wrist, được tách thành bottleneck vật lý |
+| `tstcc` | Temporal Contrasting + Contextual Contrasting (TS-TCC) | `tstcc` |
+| `swav` | weak/strong views, prototype, Sinkhorn và swapped prediction | `swav` |
+| `crosshar` | augmentation hoán vị 3D và sequential domain-aware training | `crosshar` |
+| `tstcc_swav` | hybrid TS-TCC + SwAV; có thể bật thêm contextual contrastive loss | `tstcc_swav` |
 
-Các source-target pair thường dùng trong code có dạng:
+Thông số TS-TCC mặc định nằm trong
+[`config/methods/tstcc_config.py`](config/methods/tstcc_config.py): 3
+timesteps dự đoán, hidden dimension 64, Transformer depth 4, 4 attention
+heads, temperature 0.2, 60 epoch, batch size 64. Thông số hybrid nằm trong
+[`config/methods/tstcc_swav_config.py`](config/methods/tstcc_swav_config.py).
 
-```text
-motionsense:uci_har
-uci_har:motionsense
-motionsense:hhar_phone
-uci_har:hhar_phone
-motionsense:hhar_watch
-uci_har:hhar_watch
-```
+Tài liệu triển khai chi tiết:
 
-Tên pair được truyền cho script bằng dấu `:` nhưng thư mục kết quả dùng dạng
-`source_to_target`.
+- [`document/ssl_implementation_docs/TS_TCC.md`](document/ssl_implementation_docs/TS_TCC.md)
+- [`document/ssl_implementation_docs/SwAV_SSL.md`](document/ssl_implementation_docs/SwAV_SSL.md)
+- [`document/ssl_implementation_docs/CROSSHAR.md`](document/ssl_implementation_docs/CROSSHAR.md)
+- [`document/ssl_implementation_docs/TSTCC_SWAV.md`](document/ssl_implementation_docs/TSTCC_SWAV.md)
 
-### 3.2. Phân chia dữ liệu
-
-- **MotionSense:** subject 1-14 train, 15-18 validation, 19-24 test.
-- **UCI-HAR:** subject 27-30 được tách validation từ train gốc; test gốc
-  được giữ lại.
-- **HHAR:** subject được chia theo cấu hình trong
-  [`config/hhar_config.py`](config/hhar_config.py), đồng thời tách phone và
-  watch.
-
-Các script giữ `subjects` trong file `.pt` để có thể kiểm tra leakage và phân
-tích theo người dùng.
-
-## 4. Phương pháp
-
-### 4.1. Prototype SSL
-
-Phương pháp prototype học các centroid trong không gian embedding. Những mẫu
-cùng hoạt động được gom về prototype tương ứng; classifier sau đó có thể hoạt
-động với số lượng mẫu nhãn nhỏ. Cách tiếp cận này phù hợp với few-shot vì
-quyết định dựa trên hình học lớp thay vì chỉ phụ thuộc vào một head lớn.
-
-### 4.2. Contrastive SSL (TS-TCC)
-
-Contrastive learning tạo các view được augment của chuỗi thời gian, kéo các
-view dương lại gần và tách các mẫu âm. Trong repository, checkpoint contrastive
-được lưu với tiền tố `tstcc`.
-
-### 4.3. CrossHAR
-
-CrossHAR kết hợp học đặc trưng hoạt động với mục tiêu giảm khác biệt giữa các
-miền. Alignment có thể cải thiện chuyển giao trong cùng loại cảm biến, nhưng
-không thể loại bỏ hoàn toàn khác biệt động học giữa wrist và pocket.
-
-### 4.4. Backbone
-
-- `standard`: encoder 1D-CNN, có bias cục bộ phù hợp với các pattern chu kỳ
-  trong tín hiệu cảm biến.
-- `cnn_transformer`: CNN trích xuất đặc trưng cục bộ, Transformer mô hình hóa
-  quan hệ xa trong cửa sổ.
-- `vit_1d` và `tstcc`: được hỗ trợ trong một số script pre-training/legacy;
-  cần kiểm tra tương thích checkpoint trước khi dùng cho benchmark chính.
-
-## 5. Cấu trúc repository
+## 4. Cấu trúc repository
 
 ```text
 CrossDomain-HAR-SSL/
-├── config/                  # Đường dẫn, label map, window và subject split
+├── config/
+│   ├── data_paths.py
+│   ├── datasets/                 # registry và cấu hình UCI/MotionSense/HHAR
+│   └── methods/                  # hyperparameter SSL
 ├── data/
-│   ├── raw/                 # Dữ liệu thô, không commit
-│   └── processed/           # Các file train.pt/val.pt/test.pt
-├── datasets/                # Dataset và data loader
+│   ├── raw/                      # dữ liệu gốc, không commit
+│   ├── processed/                # train.pt/val.pt/test.pt/dataset_all.pt
+│   └── explore_data/             # notebook khảo sát dữ liệu
+├── datasets/                     # dataset wrapper và augmentation
 ├── engines/
-│   ├── pretrain_ssl/        # Trainer SSL
-│   ├── transfer/            # Fine-tuning và transfer
-│   └── evaluation/          # Tính metric
+│   ├── pretrain_ssl/             # trainer TSTCC, SwAV, CrossHAR, hybrid
+│   ├── transfer/                 # train/evaluate downstream
+│   ├── evaluation/               # metric và few-shot report
+│   └── supervised/               # baseline supervised
 ├── models/
-│   ├── encoders/            # standard, CNN-Transformer, ViT-1D, TS-TCC
-│   ├── heads/               # classifier/projection head
-│   └── ssl/                 # model prototype, contrastive, CrossHAR
+│   ├── encoders/                 # standard 4 block và backbone tùy chọn
+│   ├── heads/                    # classifier/projection head
+│   └── ssl/                      # model TSTCC, SwAV, CrossHAR, hybrid
 ├── scripts/
-│   ├── 00_preprocess/       # Đóng gói dữ liệu
-│   ├── 01_baseline/         # Baseline supervised
-│   ├── 02_pretrain_ssl/     # SSL pre-training
-│   ├── 03_cross_domain/     # K-shot/fraction transfer
-│   └── 04_results/          # Aggregate, plot, report
-├── checkpoints/             # Checkpoint pre-training
-├── outputs_evaluation/      # JSON, confusion matrix và kết quả đánh giá
-├── plots/                   # Hình dùng trong README/báo cáo
-├── figures/                 # Hình embedding và pre-training
-├── document/                # Tài liệu dataset, log và báo cáo cũ
-└── section/                 # Báo cáo Cross-Domain hiện tại
+│   ├── 00_preprocess/
+│   ├── 01_baseline/
+│   ├── 02_pretrain_ssl/
+│   ├── 03_cross_domain/
+│   ├── 04_results/
+│   └── 05_analysis/
+├── checkpoints/                  # checkpoint SSL, không commit file lớn
+├── outputs_evaluation/           # JSON, CSV, confusion matrix, aggregate
+├── document/                     # báo cáo và tài liệu triển khai
+├── requirements.txt
+└── README.md
 ```
 
-## 6. Cài đặt
+## 5. Cài đặt
 
-### 6.1. Yêu cầu
-
-- Linux/Ubuntu khuyến nghị;
-- Python 3.11;
-- PyTorch 2.x và torchvision tương thích;
-- GPU CUDA được khuyến nghị cho pre-training/fine-tuning;
-- tối thiểu khoảng trống đĩa đủ cho dữ liệu `.pt`, checkpoint và output.
-
-Các phiên bản tối thiểu được ghi trong
-[`requirements.txt`](requirements.txt). Có thể dùng `uv` hoặc `venv` tiêu
-chuẩn:
+Yêu cầu khuyến nghị: Linux, Python 3.11, PyTorch 2.x và GPU CUDA cho
+pre-training. Cài dependency:
 
 ```bash
 git clone https://github.com/Dungx1107/CrossDomain-HAR-SSL.git
@@ -245,7 +212,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Với `uv`:
+Hoặc dùng `uv`:
 
 ```bash
 uv venv --python 3.11
@@ -253,185 +220,183 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-Kiểm tra PyTorch và CUDA:
+Kiểm tra thiết bị:
 
 ```bash
 python - <<'PY'
 import torch
-print("PyTorch:", torch.__version__)
-print("CUDA available:", torch.cuda.is_available())
+print(torch.__version__)
+print("CUDA:", torch.cuda.is_available())
 if torch.cuda.is_available():
-    print("GPU:", torch.cuda.get_device_name(0))
+    print(torch.cuda.get_device_name(0))
 PY
 ```
 
-Nếu chạy trên Kaggle, một số config tự động chuyển root dữ liệu/output sang
-`/kaggle/input` và `/kaggle/working` khi biến môi trường
+Khi chạy trên Kaggle, code tự dùng `/kaggle/working` làm output root nếu
 `KAGGLE_KERNEL_RUN_TYPE` tồn tại.
 
-## 7. Chuẩn bị dữ liệu
+## 6. Chuẩn bị dữ liệu
 
-### 7.1. Đặt dữ liệu thô
-
-Đặt dữ liệu theo cấu trúc mà các config trỏ tới:
+Đặt dữ liệu gốc dưới `data/raw/` theo cấu hình trong `config/datasets/`:
 
 ```text
 data/raw/
 ├── uci_har/
-│   ├── train/
-│   └── test/
 ├── motion_sense/
 └── hhar/
 ```
 
-Chi tiết tên file UCI-HAR, cột MotionSense và format HHAR được mô tả trong:
-
-- [`document/1_datasets/motionsense_specification.md`](document/1_datasets/motionsense_specification.md)
-- [`config/uci_har_config.py`](config/uci_har_config.py)
-- [`config/motionsense_config.py`](config/motionsense_config.py)
-- [`config/hhar_config.py`](config/hhar_config.py)
-
-### 7.2. Chạy tiền xử lý
-
-Các script tiền xử lý không nhận nhiều tham số dòng lệnh; chúng đọc đường dẫn
-từ `config/` và ghi output vào `data/processed/`:
+Chạy tiền xử lý:
 
 ```bash
 python scripts/00_preprocess/preprocess_uci_har.py
 python scripts/00_preprocess/preprocess_motionsense.py
 python scripts/00_preprocess/preprocess_hhar.py
+python scripts/00_preprocess/check_data_quality.py
 ```
 
-Mỗi dataset sau khi xử lý cần có tối thiểu:
+Kết quả tối thiểu:
 
 ```text
-data/processed/<dataset>/
-├── train.pt
-├── val.pt
-├── test.pt
-└── dataset_all.pt
+data/processed/
+├── uci_har/{train,val,test,dataset_all}.pt
+├── motion_sense/{train,val,test,dataset_all}.pt
+└── hhar/
+    ├── hhar_phone/{train,val,test,dataset_all}.pt
+    └── hhar_watch/{train,val,test,dataset_all}.pt
 ```
 
-Kiểm tra nhanh chất lượng dữ liệu:
+Đường dẫn thực tế được tạo tập trung trong
+[`config/datasets/registry.py`](config/datasets/registry.py); không hard-code
+đường dẫn dataset trong script mới.
+
+## 7. Pre-training SSL
+
+### 7.1. TS-TCC/TSTCC với backbone standard 4 block
 
 ```bash
-python utils/check_data_quality.py
-```
-
-## 8. Chạy pipeline
-
-### 8.1. Baseline supervised
-
-```bash
-python scripts/01_baseline/run_train_baseline.py
-python scripts/01_baseline/run_eval_baseline.py
-```
-
-K-fold baseline:
-
-```bash
-python scripts/01_baseline/run_kfold_baseline.py
-```
-
-### 8.2. SSL pre-training
-
-Prototype:
-
-```bash
-python scripts/02_pretrain_ssl/run_pretrain_prototype.py \
+python scripts/02_pretrain_ssl/run_pretrain_tstcc.py \
   --backbone standard \
-  --datasets uci_har motionsense \
-  --epochs 40 \
-  --batch_size 64
-```
-
-Contrastive/TS-TCC:
-
-```bash
-python scripts/02_pretrain_ssl/run_pretrain_contrastive.py \
-  --backbone cnn_transformer \
-  --datasets uci_har motionsense \
+  --datasets uci_har motion_sense \
   --epochs 60 \
-  --batch_size 64
+  --batch_size 64 \
+  --tag bs64
 ```
 
-CrossHAR:
+`--tag` là tùy chọn để tách các lần chạy. Nếu bỏ tag, checkpoint dùng đường
+dẫn mặc định.
+
+### 7.2. SwAV
 
 ```bash
-python scripts/02_pretrain_ssl/run_crosshar_pretrain.py \
+python scripts/02_pretrain_ssl/run_pretrain_swav.py \
   --backbone standard \
-  --datasets motionsense \
+  --datasets uci_har motion_sense \
+  --epochs 60 \
+  --batch_size 64 \
+  --tag bs64
+```
+
+### 7.3. CrossHAR
+
+CrossHAR hiện hỗ trợ `standard` và `cnn_transformer`; backbone chính vẫn có
+thể chạy bằng `--backbone standard`.
+
+```bash
+python scripts/02_pretrain_ssl/run_pretrain_crosshar.py \
+  --backbone standard \
+  --datasets motion_sense uci_har \
   --epochs 60 \
   --warmup_msm_epochs 15 \
   --batch_size 64
 ```
 
-Checkpoint thường được đặt dưới
-`checkpoints/ssl_pretrain/<method>/<source>/<backbone>/`. Script transfer kiểm
-tra sự tồn tại của checkpoint và sẽ báo lỗi rõ ràng nếu thiếu.
+Script mặc định mở rộng dữ liệu bằng 6 phép hoán vị 3D (`--expand_6x`).
 
-### 8.3. K-shot cross-domain
+### 7.4. Hybrid TS-TCC x SwAV
 
-Ví dụ chuyển từ MotionSense sang UCI-HAR:
+```bash
+python scripts/02_pretrain_ssl/run_pretrain_tstcc_swav.py \
+  --backbone standard \
+  --datasets uci_har motion_sense \
+  --epochs 60 \
+  --batch_size 64 \
+  --complexity
+```
+
+Chạy ablation có contextual contrastive loss:
+
+```bash
+python scripts/02_pretrain_ssl/run_pretrain_tstcc_swav.py \
+  --backbone standard \
+  --variant cc \
+  --lambda_cc 0.7 \
+  --datasets uci_har motion_sense
+```
+
+Trước khi chạy thật, có thể dùng `--epochs 1 --datasets uci_har` để kiểm tra
+đường dẫn dữ liệu, kích thước tensor và checkpoint.
+
+## 8. Few-shot cross-domain transfer
+
+`run_few_shot.py` hỗ trợ các protocol:
+
+- `full`: linear probing, đóng băng toàn bộ encoder;
+- `partial:N`: partial fine-tuning, mở `N` block cuối;
+- `none`: full fine-tuning, mở toàn bộ encoder.
+
+Ví dụ TSTCC với backbone **standard 4 block**:
 
 ```bash
 python scripts/03_cross_domain/run_few_shot.py \
-  --method prototype \
+  --method tstcc \
   --backbone standard \
-  --k_shots 10 20 50 100 \
+  --pretrain_tag bs64 \
+  --pairs motion_sense:uci_har uci_har:motion_sense \
+  --k_shots 10 30 50 100 150 200 \
   --seeds 42 100 2024 7 99 \
   --epochs 40 \
   --batch_size 16 \
-  --pairs motionsense:uci_har
+  --freeze_modes full partial:2 none
 ```
 
-Có thể truyền nhiều pair trong một lần chạy:
+Ví dụ đánh giá bottleneck wrist:
 
 ```bash
 python scripts/03_cross_domain/run_few_shot.py \
-  --method crosshar \
-  --backbone cnn_transformer \
-  --k_shots 10 20 50 100 \
-  --pairs motionsense:uci_har uci_har:motionsense motionsense:hhar_watch
+  --method swav \
+  --backbone standard \
+  --pairs motion_sense:hhar_watch uci_har:hhar_watch \
+  --k_shots 10 30 50 100 \
+  --freeze_modes full none
 ```
 
-Mỗi cấu hình sinh:
+Các method hợp lệ trong CLI hiện tại là `tstcc`, `swav`, `crosshar` và
+`tstcc_swav`. Backbone hợp lệ là `standard`, `cnn_transformer`, `vit_1d`,
+`tstcc` và `cnn_lstm`.
 
-```text
-outputs_evaluation/cross_k_shot/<method>/<backbone>/<source>_to_<target>/
-├── experiment_metadata.json
-└── <k>_shot/
-    ├── linear_probing/
-    │   ├── summary_*.json
-    │   ├── detailed_all_seeds.json
-    │   └── aggregated_confusion_matrix.png
-    └── full_finetuning/
-        ├── summary_*.json
-        ├── detailed_all_seeds.json
-        └── aggregated_confusion_matrix.png
-```
-
-### 8.4. Fraction-based adaptation
-
-Ngoài K-shot, pipeline hỗ trợ lấy một tỷ lệ dữ liệu train đích:
+Fraction-based adaptation là pipeline legacy và hiện nhận các method
+`contrastive`, `prototype` hoặc `crosshar`:
 
 ```bash
 python scripts/03_cross_domain/run_cross_domain.py \
-  --method prototype \
+  --method contrastive \
   --backbone standard \
   --fractions 0.01 0.05 0.10 \
-  --seeds 42 100 2024 7 99 \
-  --epochs 40 \
-  --batch_size 16 \
-  --pairs motionsense:uci_har
+  --pairs motion_sense:uci_har \
+  --seeds 42 100 2024 7 99
 ```
 
-Kết quả được ghi dưới
-`outputs_evaluation/cross_fraction/<method>/<backbone>/`.
+## 9. Đánh giá, aggregate và báo cáo
 
-## 9. Đánh giá và sinh báo cáo
+Tổng hợp K-shot và fraction:
 
-Sinh báo cáo Markdown từ toàn bộ cây K-shot:
+```bash
+python scripts/04_results/aggregate_k_shot.py
+python scripts/04_results/aggregate_fraction.py
+```
+
+Sinh báo cáo Markdown từ cây kết quả:
 
 ```bash
 python scripts/04_results/cross_domain_har_reporter.py \
@@ -439,127 +404,92 @@ python scripts/04_results/cross_domain_har_reporter.py \
   --output section/Bao_Cao_Cross_Domain_HAR.md
 ```
 
-Các công cụ hỗ trợ:
+Các công cụ trực quan hóa và phân tích:
 
 ```bash
-python scripts/04_results/aggregate_k_shot.py
-python scripts/04_results/aggregate_fraction.py
 python scripts/04_results/plot_charts.py
 python scripts/04_results/plot_hybrid_grid.py
+python scripts/05_analysis/plot_k_shot_evaluation.py
+python scripts/05_analysis/plot_protocol_split.py
+python scripts/05_analysis/plot_tsne.py
+python scripts/05_analysis/visualize_cross_k_shot.py
+python scripts/05_analysis/print_k_shot_table.py
 ```
 
-Báo cáo phân tích chi tiết hiện có tại
-[`section/Bao_Cao_Phan_Tich_Cross_Domain_HAR.md`](section/Bao_Cao_Phan_Tich_Cross_Domain_HAR.md).
-Báo cáo sinh tự động và phiên bản LaTeX nằm trong thư mục
-[`section/`](section/).
+Khi so sánh nhiều method, chỉ dùng các source-target pair có cùng shot,
+protocol và backbone. `N/A` là thiếu record, không phải điểm 0. Báo cáo nên
+giữ `mean ± std` theo seed, tách riêng target `hhar_watch`, và kiểm tra các
+trường hợp `std > 5` điểm phần trăm hoặc linear probing vượt full
+fine-tuning.
 
-## 10. Kết quả chính
+Các biểu đồ nên có trong báo cáo:
 
-Các nhận xét dưới đây được tổng hợp từ kết quả hiện có trong repository, không
-phải là cam kết cho mọi seed hoặc mọi pair mới:
+1. **100-shot grouped bars:** x = method, y = macro F1, hue = backbone,
+   error bar = std.
+2. **Shot learning curve:** x = số shot, y = macro F1, nhóm theo
+   method/backbone/protocol.
+3. **Source-target heatmap:** hàng = source, cột = target, giá trị = cấu hình
+   tốt nhất.
+4. **Seed-level boxplot:** x = method, y = metric từng seed, hue = shot.
 
-- Ở cấu hình pocket-level, backbone `standard` nhìn chung ổn định hơn
-  `cnn_transformer`, đặc biệt trong linear probing.
-- Ở 100-shot, linear probing trên `standard` cho macro F1 trung bình khoảng
-  **73,68% CrossHAR**, **70,72% Prototype** và **72,20% Contrastive** theo
-  các giao pair khả dụng tương ứng trong báo cáo. Số pair không giống nhau,
-  vì vậy không nên đọc các giá trị này như một bảng xếp hạng tuyệt đối.
-- Contrastive + CNN-Transformer có mức tăng FT so với LP lớn, cho thấy
-  representation cần adaptation thêm ở miền đích.
-- Lợi ích của shot tăng mạnh ở vùng ít nhãn và có xu hướng bão hòa khi tiến
-  tới 100 shot.
-- Các target `hhar_watch` suy giảm đáng kể so với pocket-level. Sự suy giảm
-  này phù hợp với physical domain shift do vị trí đeo cổ tay.
-- Cấu hình có macro F1 cao nhất trên một pair pocket-level được báo cáo là
-  **Prototype + standard + 100-shot + full fine-tuning**, trên
-  **MotionSense -> UCI-HAR**. Đây là kết quả theo pair cụ thể, không phải
-  trung bình toàn bộ miền.
-- Cấu hình thực dụng về số lượng nhãn được báo cáo là Prototype + standard +
-  50-shot + full fine-tuning; tuy nhiên repository chưa có FLOPs, latency và
-  memory đầy đủ, nên chưa thể gọi đây là trade-off compute tối ưu.
+Nếu file seed-level không tồn tại thì phải ghi rõ boxplot không khả dụng,
+không thay bằng một proxy.
 
-### Hình minh họa kết quả
+## 10. Checkpoint và output
 
-<p align="center">
-  <img src="plots/protocol_adaptation_gap_pocket.png" alt="Khoảng cách full fine-tuning và linear probing ở pocket-level" width="49%">
-  <img src="plots/protocol_adaptation_gap_wrist.png" alt="Khoảng cách full fine-tuning và linear probing ở wrist-level" width="49%">
-</p>
-<p align="center"><em>So sánh protocol adaptation ở pocket-level và wrist-level.</em></p>
+Checkpoint dùng quy ước tập trung trong
+[`utils/checkpoint_paths.py`](utils/checkpoint_paths.py):
 
-<p align="center">
-  <img src="plots/wrist_domain_bottleneck.png" alt="Nút thắt domain hhar watch" width="72%">
-</p>
+```text
+checkpoints/ssl_pretrain/<method>/<dataset>/<backbone>[_<tag>]/
+└── <method>_<backbone>_encoder_pretrained_<dataset>.pt
+```
 
-## 11. Trực quan hóa
+Ví dụ:
 
-Các hình đã có trong repository:
+```text
+checkpoints/ssl_pretrain/tstcc/uci_har/standard_bs64/
+└── tstcc_standard_encoder_pretrained_uci_har.pt
+```
 
-| Hình | Nội dung |
-|---|---|
-| [`plots/k_shot_scaling_curves.png`](plots/k_shot_scaling_curves.png) | Đường cong macro F1 theo số shot |
-| [`plots/protocol_adaptation_gap.png`](plots/protocol_adaptation_gap.png) | Khoảng cách FT-LP |
-| [`plots/protocol_adaptation_gap_pocket.png`](plots/protocol_adaptation_gap_pocket.png) | FT-LP trên pocket-level |
-| [`plots/protocol_adaptation_gap_wrist.png`](plots/protocol_adaptation_gap_wrist.png) | FT-LP trên wrist-level |
-| [`plots/wrist_domain_bottleneck.png`](plots/wrist_domain_bottleneck.png) | So sánh nút thắt `hhar_watch` |
-| [`plots/few_shot_benchmark/tstcc_vs_prototype_comparison.png`](plots/few_shot_benchmark/tstcc_vs_prototype_comparison.png) | Contrastive/Prototype few-shot |
-| [`figures/pretrain/prototype/tsne_plots/300_tsne_standard.png`](figures/pretrain/prototype/tsne_plots/300_tsne_standard.png) | t-SNE embedding của standard |
+Kết quả few-shot:
 
-Các visualization nên được giữ nhất quán với báo cáo:
+```text
+outputs_evaluation/cross_k_shot/<method>/<backbone>[_<tag>]/
+└── <source>_to_<target>/
+    ├── experiment_metadata.json
+    └── <k>_shot/
+        ├── linear_probing/
+        ├── partial_<N>blocks/
+        └── full_finetuning/
+```
 
-1. **100-shot grouped bar:** X = method, Y = macro F1, hue = backbone,
-   error bar = std; đặt sau bảng so sánh method.
-2. **Shot learning curve:** X = số shot, Y = macro F1, mỗi đường là
-   method/backbone/protocol; đặt trong phần data efficiency.
-3. **Source-target heatmap:** hàng = source, cột = target, annotation =
-   macro F1 của cấu hình tốt nhất; đặt trong phần transfer asymmetry.
-4. **Seed-level boxplot:** X = method, Y = F1 từng seed, hue = shot; đặt
-   trong phần ổn định seed.
+Mỗi protocol thường gồm `summary_*.json`,
+`detailed_all_seeds.json` và `aggregated_confusion_matrix.png`.
 
-Nếu `detailed_all_seeds.json` không có seed-level metric thì không được thay
-boxplot bằng một proxy; cần ghi rõ dữ liệu không khả dụng.
+## 11. Tái lập thí nghiệm
 
-## 12. Tái lập và kiểm soát chất lượng
+1. Ghi lại commit Git, Python, PyTorch, CUDA, GPU và device.
+2. Giữ nguyên dataset, source-target pairs, method, **backbone**, tag, shot,
+   protocol, epoch, batch size và seed.
+3. Kiểm tra checkpoint có đúng method/dataset/backbone trước khi transfer.
+4. Không dùng `Laying` hoặc `Jogging` trong benchmark năm lớp.
+5. So sánh method trên cùng giao source-target pair.
+6. Giữ `experiment_metadata.json`, summary và detailed seed records cùng nhau.
+7. Không commit raw data, checkpoint lớn hoặc token/API credentials.
 
-Để tái lập một thí nghiệm:
+## 12. Tài liệu tham khảo trong repository
 
-1. ghi lại commit Git, Python/PyTorch/CUDA và GPU;
-2. giữ nguyên danh sách seed, pair, shot/fraction, epoch và batch size;
-3. kiểm tra checkpoint đúng method, source và backbone;
-4. không trộn các lớp riêng `Laying`/`Jogging` vào benchmark năm lớp;
-5. kiểm tra `experiment_metadata.json` sau mỗi lần chạy;
-6. dùng cùng giao source-target pair khi so sánh các method;
-7. kiểm tra các record có `std > 5` điểm phần trăm và báo cáo như biến động
-   cao;
-8. xem riêng confusion matrix để phát hiện nhầm lẫn giữa `Walking`,
-   `Upstairs` và `Downstairs`.
+- [`document/ssl_implementation_docs/`](document/ssl_implementation_docs/) -
+  tài liệu triển khai SSL.
+- [`document/0_reports/`](document/0_reports/) - báo cáo học thuật và kết quả.
+- [`scripts/05_analysis/`](scripts/05_analysis/) - notebook/script phân tích.
+- [`config/datasets/`](config/datasets/) - nguồn sự thật cho nhãn, split và
+  đường dẫn dữ liệu.
+- [`models/encoders/cnn1d.py`](models/encoders/cnn1d.py) - backbone standard
+  4 block.
+- [`models/encoders/builder.py`](models/encoders/builder.py) - factory của
+  toàn bộ backbone.
 
-Không commit dữ liệu thô, checkpoint lớn, thông tin API/token hoặc file sinh
-ra có chứa dữ liệu nhạy cảm. Khi chia sẻ kết quả, nên chia sẻ JSON summary,
-metadata và script tạo hình thay vì chỉ chia sẻ ảnh.
-
-## 13. Hạn chế và hướng phát triển
-
-- Coverage giữa các method/backbone/shot/protocol chưa luôn cân bằng.
-- Một số aggregate có số pair khác nhau; ranking cần được đọc cùng số pair
-  khả dụng.
-- Cần thêm seed và kiểm định paired trên cùng pair để tăng độ tin cậy thống kê.
-- Cần ghi nhận FLOPs, peak memory, latency và thời gian fine-tuning để đánh
-  giá accuracy/compute đúng nghĩa.
-- `hhar_watch` cần được xem như một cluster vật lý riêng, có thể cần
-  normalization theo sensor axis, augmentation nhận thức vị trí đeo và dữ
-  liệu chuyển động tay đa dạng hơn.
-- Nên bổ sung đánh giá subject-wise và mở rộng factorial design cho các cấu
-  hình 10/20 shot còn thiếu.
-
-## 14. Tài liệu tham khảo trong repository
-
-Các tài liệu và log thực nghiệm được lưu tại:
-
-- [`document/0_reports/`](document/0_reports/)
-- [`document/1_datasets/`](document/1_datasets/)
-- [`document/2_code_docs/`](document/2_code_docs/)
-- [`document/references/`](document/references/)
-- [`section/Bao_Cao_Phan_Tich_Cross_Domain_HAR.md`](section/Bao_Cao_Phan_Tich_Cross_Domain_HAR.md)
-
-Nếu sử dụng mã nguồn hoặc kết quả, hãy trích dẫn bài báo/dataset gốc tương
-ứng và ghi rõ phiên bản commit của repository dùng để chạy thực nghiệm.
+Khi sử dụng repository, cần trích dẫn dataset và bài báo gốc tương ứng, đồng
+thời ghi lại commit đã dùng để tạo kết quả.
