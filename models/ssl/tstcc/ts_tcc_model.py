@@ -31,6 +31,7 @@ import torch.nn as nn
 
 from models.encoders.tstcc_encoder import TSTCCEncoder
 from models.ssl.tstcc.tc import TC
+from models.ssl.tstcc.tc_lstm import TCLSTM
 from losses.nt_xent import NTXentLoss
 
 
@@ -55,6 +56,8 @@ class TSTCCModel(nn.Module):
         lambda1: float = 1.0,
         lambda2: float = 0.7,
         temperature: float = 0.2,
+        tc_type: str = "transformer",
+        tc_lstm_layers: int = 1,
     ):
         """
         Args:
@@ -69,6 +72,8 @@ class TSTCCModel(nn.Module):
             lambda1       : Trọng số L_TC (1.0 theo bài báo).
             lambda2       : Trọng số L_CC (0.7 theo bài báo).
             temperature   : Nhiệt độ NT-Xent (0.2 theo bài báo).
+            tc_type       : 'transformer' (gốc) | 'lstm' (thay Seq_Transformer bằng LSTM).
+            tc_lstm_layers: Số lớp LSTM khi tc_type='lstm' (tc_depth/heads/mlp_dim bị bỏ qua).
         """
         super().__init__()
 
@@ -85,14 +90,25 @@ class TSTCCModel(nn.Module):
         )
 
         # 2. Temporal Contrasting
-        self.tc = TC(
-            final_out_channels=feature_dim,
-            timesteps=timesteps,
-            hidden_dim=tc_hidden_dim,
-            depth=tc_depth,
-            heads=tc_heads,
-            mlp_dim=tc_mlp_dim,
-        )
+        self.tc_type = tc_type
+        if tc_type == "transformer":
+            self.tc = TC(
+                final_out_channels=feature_dim,
+                timesteps=timesteps,
+                hidden_dim=tc_hidden_dim,
+                depth=tc_depth,
+                heads=tc_heads,
+                mlp_dim=tc_mlp_dim,
+            )
+        elif tc_type == "lstm":
+            self.tc = TCLSTM(
+                final_out_channels=feature_dim,
+                timesteps=timesteps,
+                hidden_dim=tc_hidden_dim,
+                num_layers=tc_lstm_layers,
+            )
+        else:
+            raise ValueError(f"tc_type không hợp lệ: '{tc_type}' (chọn 'transformer' | 'lstm')")
 
         # 3. Contextual Contrasting
         self.nt_xent = NTXentLoss(temperature=temperature)

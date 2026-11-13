@@ -54,7 +54,8 @@ def _build_loader(data_path, batch_size: int, num_workers: int, device: str) -> 
 
 def _build_ssl_model(
         model: Optional[nn.Module], backbone_type: str, in_channels: int,
-        feature_dim: int, temperature: float, device: str
+        feature_dim: int, temperature: float, device: str,
+        tc_type: str = "transformer"
 ) -> nn.Module:
     """Dùng model truyền vào, hoặc dựng TSTCCModel mới từ TSTCCConfig."""
     if model is not None:
@@ -71,6 +72,8 @@ def _build_ssl_model(
         tc_depth=TSTCCConfig.TC_DEPTH,
         tc_heads=TSTCCConfig.TC_HEADS,
         tc_mlp_dim=TSTCCConfig.TC_MLP_DIM,
+        tc_type=tc_type,
+        tc_lstm_layers=TSTCCConfig.TC_LSTM_LAYERS,
     ).to(device)
 
 
@@ -127,6 +130,7 @@ def train_tstcc_encoder(
         seq_len: int = 128,
         num_workers: int = 2,
         tag: str = "",
+        tc_type: str = TSTCCConfig.TC_TYPE,
 ) -> None:
     # ---- Đường dẫn: checkpoints/ssl_pretrain/tstcc/<dataset>/<backbone>_<tag>/ ----
     target_dir = ssl_checkpoint_dir(get_output_root(), METHOD_NAME, dataset_name, backbone_type, tag=tag)
@@ -137,7 +141,9 @@ def train_tstcc_encoder(
     # ---- 1. Dữ liệu + 2. Model ----
     loader = _build_loader(data_path, batch_size, num_workers, device)
     total_samples = len(loader.dataset)
-    ssl_model = _build_ssl_model(model, backbone_type, in_channels, feature_dim, temperature, device)
+    ssl_model = _build_ssl_model(
+        model, backbone_type, in_channels, feature_dim, temperature, device, tc_type
+    )
 
     # ---- 3. Config + 4. Optimizer ----
     save_json(
@@ -150,6 +156,13 @@ def train_tstcc_encoder(
             device=device,
         ),
         target_dir / "config.json",
+    )
+    save_json(
+        {"tc_type": tc_type, "timesteps": TSTCCConfig.TIMESTEPS,
+         "tc_hidden_dim": TSTCCConfig.TC_HIDDEN_DIM, "tc_lstm_layers": TSTCCConfig.TC_LSTM_LAYERS,
+         "tc_depth": TSTCCConfig.TC_DEPTH, "tc_heads": TSTCCConfig.TC_HEADS,
+         "tc_mlp_dim": TSTCCConfig.TC_MLP_DIM},
+        target_dir / "tc_config.json",
     )
     optimizer = AdamW(ssl_model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 

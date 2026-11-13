@@ -25,7 +25,7 @@ parser.add_argument(
     "--backbone",
     type=str,
     default="standard",
-    choices=["tstcc", "standard", "cnn_transformer", "vit_1d", "cnn_lstm"],
+    choices=["tstcc", "standard", "cnn_transformer", "vit_1d", "cnn_lstm", "cnn_lstm_il"],
     help="Loại kiến trúc backbone (mặc định: vit_1d)",
 )
 parser.add_argument(
@@ -48,7 +48,15 @@ parser.add_argument(
 )
 parser.add_argument("--tag", type=str, default="",
                     help="Tag phụ để phân biệt lần chạy (vd 'bs64', 'bs128'). Rỗng = không tag.")
+parser.add_argument("--tc_type", type=str, default="transformer",
+                    choices=["transformer", "lstm"],
+                    help="Module TC: transformer (gốc) hoặc lstm. lstm tự thêm hậu tố 'tclstm' vào tag.")
 args = parser.parse_args()
+
+# Tự gắn hậu tố vào tag để checkpoint TC-LSTM không ghi đè checkpoint Transformer
+TAG = args.tag
+if args.tc_type == "lstm" and "tclstm" not in TAG:
+    TAG = f"{TAG}_tclstm" if TAG else "tclstm"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -56,7 +64,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 def main():
     print("=" * 80)
     print(f"🌟 BẮT ĐẦU PRETRAIN SSL TRÊN: {args.datasets} | Thiết bị: {DEVICE.upper()}")
-    print(f"🧠 Backbone: {args.backbone.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size}")
+    print(f"🧠 Backbone: {args.backbone.upper()} | TC: {args.tc_type.upper()} | Epochs: {args.epochs} | Batch Size: {args.batch_size}")
     print("=" * 80)
 
     for name in args.datasets:
@@ -79,7 +87,8 @@ def main():
             batch_size=args.batch_size,
             device=DEVICE,
             num_workers=2 if DEVICE == "cuda" else 0,
-            tag=args.tag,
+            tag=TAG,
+            tc_type=args.tc_type,
         )
     print("\n" + "=" * 80)
     print("🎉 HOÀN THÀNH PRETRAIN!")

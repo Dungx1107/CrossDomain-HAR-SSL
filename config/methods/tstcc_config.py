@@ -5,6 +5,8 @@ class TSTCCConfig:
     TC_DEPTH = 4  # Số lớp Transformer Encoder trong mạng Temporal Contrasting.
     TC_HEADS = 4  # Số attention heads trong mỗi lớp Transformer.
     TC_MLP_DIM = 64  # Số chiều tầng ẩn của Feed-Forward Network trong Transformer.
+    TC_TYPE = "transformer"  # 'transformer' (gốc) | 'lstm' (thay Seq_Transformer bằng LSTM).
+    TC_LSTM_LAYERS = 1  # Số lớp LSTM khi TC_TYPE='lstm' (hidden = TC_HIDDEN_DIM).
 
     # 2. Contrastive Learning
     LAMBDA1 = 1.0  # Trọng số của Temporal Contrasting Loss.
